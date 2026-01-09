@@ -1,0 +1,63 @@
+# IDE
+.idea
+.idea/*
+.vscode
+.vscode/*
+*.iml
+.DS_Store
+
+workspace.code-workspace
+
+*.pub
+*.ppk.DS_Store
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Ansible templated inventory files
+inventory/aws/run/*aws_ec2.yml
+inventory/aws/init/*aws_ec2.yml
+
+# Vagrant stuff
+acceptance_config.yml
+boxes/*
+/.vagrant
+**/.vagrant
+/website/.vagrant
+/website/build
+/vagrant-spec.config.rb
+test/vagrant-spec/.vagrant/
+.vagrant/
+/vagrant
+/pkg
+data.db
+vagrant-restore.db.lock
+cmd/vagrant/Vagrantfile
+binstubs/
+
+# Bundler/Rubygems
+*.gem
+.bundle
+pkg/*
+/Gemfile.lock
+test/tmp/
+/exec
+.ruby-bundle
+vendor/bundle
+
+# Ansible Vault files
+.vault_key
+vault.yml
+
+# Roo Code local files
+.roo
+AGENTS.md
+.logs
+.docs
+
+# Github Copilot Temp Dir
+.ai_references
+
+# Temp files
+tests/temp
