@@ -1,0 +1,39 @@
+---
+# Kafka configuration tasks
+
+- name: Create Kafka server.properties
+  ansible.builtin.template:
+    src: server.properties.j2
+    dest: "{{ kafka_config_file }}"
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_group }}"
+    mode: "0644"
+  notify: restart kafka
+
+- name: Create Kafka environment script
+  ansible.builtin.template:
+    src: kafka-env.sh.j2
+    dest: "{{ kafka_conf_dir }}/kafka-env.sh"
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_group }}"
+    mode: "0755"
+  notify: restart kafka
+
+- name: Create TLS truststore
+  when: kafka_tls_enabled | bool
+  block:
+    - name: Check if CA certificate exists
+      ansible.builtin.stat:
+        path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/ca.crt"
+      register: ca_cert_stat
+
+    - name: Create truststore from CA certificate
+      community.general.java_cert:
+        cert_path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/ca.crt"
+        cert_alias: kafka-ca
+        keystore_path: "{{ kafka_truststore_path }}"
+        keystore_pass: "{{ kafka_truststore_password }}"
+        keystore_create: true
+        trust_cacert: true
+        state: present
+      when: ca_cert_stat.stat.exists

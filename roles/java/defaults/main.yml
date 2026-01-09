@@ -1,0 +1,19 @@
+---
+# Default variables for the java role
+
+# Java version to install
+java_version: "17"
+
+# Installation method: package (system package manager)
+java_install_method: "package"
+
+# Package names (OS-specific, set in vars files)
+java_package_name: ""
+
+# JAVA_HOME configuration
+java_home: ""
+java_set_java_home: true
+java_home_profile_file: /etc/profile.d/java.sh
+
+# Validation
+java_validate_installation: true

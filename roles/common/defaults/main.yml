@@ -1,0 +1,115 @@
+---
+# Default variables for the common role
+
+# System packages to install
+common_packages_redhat:
+  - wget
+  - curl
+  - tar
+  - gzip
+  - unzip
+  - nc
+  - net-tools
+  - procps-ng
+  - iproute
+  - hostname
+  - which
+  - openssl
+  - ca-certificates
+
+common_packages_debian:
+  - wget
+  - curl
+  - tar
+  - gzip
+  - unzip
+  - netcat-openbsd
+  - net-tools
+  - procps
+  - iproute2
+  - hostname
+  - openssl
+  - ca-certificates
+
+# User and group configuration
+common_create_kafka_user: true
+common_create_zookeeper_user: true
+
+kafka_user: kafka
+kafka_group: kafka
+kafka_uid: 1001
+kafka_gid: 1001
+
+zookeeper_user: zookeeper
+zookeeper_group: zookeeper
+zookeeper_uid: 1002
+zookeeper_gid: 1002
+
+# Directory configuration
+common_directories:
+  - path: /opt/kafka-ca
+    mode: "0755"
+    owner: root
+    group: root
+
+# System limits configuration
+common_configure_limits: true
+common_ulimits:
+  - domain: "{{ kafka_user }}"
+    limit_type: soft
+    limit_item: nofile
+    value: 65536
+  - domain: "{{ kafka_user }}"
+    limit_type: hard
+    limit_item: nofile
+    value: 65536
+  - domain: "{{ zookeeper_user }}"
+    limit_type: soft
+    limit_item: nofile
+    value: 65536
+  - domain: "{{ zookeeper_user }}"
+    limit_type: hard
+    limit_item: nofile
+    value: 65536
+  - domain: "{{ kafka_user }}"
+    limit_type: soft
+    limit_item: nproc
+    value: 32768
+  - domain: "{{ kafka_user }}"
+    limit_type: hard
+    limit_item: nproc
+    value: 32768
+
+# Sysctl configuration
+common_configure_sysctl: true
+common_sysctl_settings:
+  - name: vm.swappiness
+    value: 1
+  - name: net.core.somaxconn
+    value: 32768
+  - name: net.ipv4.tcp_max_syn_backlog
+    value: 32768
+  - name: net.core.netdev_max_backlog
+    value: 32768
+
+# Firewall configuration
+common_configure_firewall: false
+common_firewall_ports:
+  - port: 2181
+    protocol: tcp
+    comment: ZooKeeper client
+  - port: 2888
+    protocol: tcp
+    comment: ZooKeeper peer
+  - port: 3888
+    protocol: tcp
+    comment: ZooKeeper election
+  - port: 9092
+    protocol: tcp
+    comment: Kafka plaintext
+  - port: 9093
+    protocol: tcp
+    comment: Kafka SSL
+
+# System updates
+common_update_packages: false

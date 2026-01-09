@@ -1,0 +1,27 @@
+---
+# Metadata for the rootca role
+
+galaxy_info:
+  author: Herman Wong
+  description: Self-signed Root CA certificate generation for TLS
+  company: ""
+  license: Apache-2.0
+  min_ansible_version: "2.15"
+
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+    - name: Ubuntu
+      versions:
+        - jammy
+
+  galaxy_tags:
+    - tls
+    - ssl
+    - certificates
+    - security
+    - pki
+    - ca
+
+dependencies: []

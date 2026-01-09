@@ -1,0 +1,138 @@
+---
+# Prepare playbook for Molecule testing
+# This runs before converge to set up prerequisites
+
+- name: Prepare all nodes
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Wait for systemd to be ready
+      ansible.builtin.command: systemctl is-system-running --wait
+      register: systemd_status
+      until: systemd_status.rc == 0 or 'running' in systemd_status.stdout or 'degraded' in systemd_status.stdout
+      retries: 30
+      delay: 2
+      changed_when: false
+      failed_when: false
+
+    - name: Display system information
+      ansible.builtin.debug:
+        msg: |
+          Hostname: {{ inventory_hostname }}
+          OS Family: {{ ansible_os_family }}
+          Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Python: {{ ansible_python_version }}
+
+- name: Generate Root CA certificates
+  hosts: rootca
+  gather_facts: true
+  tasks:
+    - name: Create CA directory
+      ansible.builtin.file:
+        path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}"
+        state: directory
+        mode: "0755"
+
+    - name: Generate Root CA private key
+      community.crypto.openssl_privatekey:
+        path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/ca.key"
+        size: 4096
+        type: RSA
+        mode: "0600"
+
+    - name: Generate Root CA CSR
+      community.crypto.openssl_csr:
+        path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/ca.csr"
+        privatekey_path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/ca.key"
+        common_name: "{{ rootca_common_name | default('Kafka Test CA') }}"
+        organization_name: "{{ rootca_organization | default('Kafka Ansible Collection') }}"
+        country_name: "{{ rootca_country | default('US') }}"
+        basic_constraints:
+          - CA:TRUE
+        basic_constraints_critical: true
+        key_usage:
+          - keyCertSign
+          - cRLSign
+        key_usage_critical: true
+
+    - name: Generate Root CA certificate
+      community.crypto.x509_certificate:
+        path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/ca.crt"
+        csr_path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/ca.csr"
+        privatekey_path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/ca.key"
+        provider: selfsigned
+        selfsigned_not_after: "+3650d"
+        mode: "0644"
+
+    - name: Read CA certificate
+      ansible.builtin.slurp:
+        src: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/ca.crt"
+      register: ca_cert_content
+
+    - name: Read CA private key
+      ansible.builtin.slurp:
+        src: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/ca.key"
+      register: ca_key_content
+
+    - name: Set CA certificate facts for distribution
+      ansible.builtin.set_fact:
+        rootca_certificate: "{{ ca_cert_content.content | b64decode }}"
+        rootca_private_key: "{{ ca_key_content.content | b64decode }}"
+      delegate_facts: true
+      delegate_to: "{{ item }}"
+      loop: "{{ groups['all'] }}"
+
+- name: Distribute CA certificates to all nodes
+  hosts: all:!rootca
+  gather_facts: false
+  tasks:
+    - name: Create CA directory
+      ansible.builtin.file:
+        path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}"
+        state: directory
+        mode: "0755"
+
+    - name: Copy CA certificate
+      ansible.builtin.copy:
+        content: "{{ rootca_certificate }}"
+        dest: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/ca.crt"
+        mode: "0644"
+
+- name: Generate node certificates
+  hosts: zookeeper:kafka
+  gather_facts: true
+  tasks:
+    - name: Generate node private key
+      community.crypto.openssl_privatekey:
+        path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/{{ inventory_hostname }}.key"
+        size: 2048
+        type: RSA
+        mode: "0600"
+
+    - name: Generate node CSR with SANs
+      community.crypto.openssl_csr:
+        path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/{{ inventory_hostname }}.csr"
+        privatekey_path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/{{ inventory_hostname }}.key"
+        common_name: "{{ inventory_hostname }}"
+        organization_name: "{{ rootca_organization | default('Kafka Ansible Collection') }}"
+        country_name: "{{ rootca_country | default('US') }}"
+        subject_alt_name:
+          - "DNS:{{ inventory_hostname }}"
+          - "DNS:localhost"
+          - "IP:127.0.0.1"
+        key_usage:
+          - digitalSignature
+          - keyEncipherment
+        extended_key_usage:
+          - serverAuth
+          - clientAuth
+
+    - name: Sign node certificate with CA
+      community.crypto.x509_certificate:
+        path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/{{ inventory_hostname }}.crt"
+        csr_path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/{{ inventory_hostname }}.csr"
+        provider: ownca
+        ownca_path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/ca.crt"
+        ownca_privatekey_content: "{{ rootca_private_key }}"
+        ownca_not_after: "+365d"
+        mode: "0644"

@@ -1,0 +1,20 @@
+#!/bin/bash
+# Kafka environment configuration
+# Managed by Ansible - do not edit manually
+
+# Heap settings
+export KAFKA_HEAP_OPTS="{{ kafka_jvm_opts }}"
+
+# GC settings
+export KAFKA_JVM_PERFORMANCE_OPTS="-server -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=35 -XX:+ExplicitGCInvokesConcurrent -XX:MaxInlineLevel=15 -Djava.awt.headless=true"
+
+# Log directory
+export LOG_DIR="{{ kafka_log_dir }}"
+
+{% if kafka_tls_enabled %}
+# TLS/SSL settings
+export KAFKA_OPTS="${KAFKA_OPTS} -Djavax.net.ssl.keyStore={{ kafka_keystore_path }}"
+export KAFKA_OPTS="${KAFKA_OPTS} -Djavax.net.ssl.keyStorePassword={{ kafka_keystore_password }}"
+export KAFKA_OPTS="${KAFKA_OPTS} -Djavax.net.ssl.trustStore={{ kafka_truststore_path }}"
+export KAFKA_OPTS="${KAFKA_OPTS} -Djavax.net.ssl.trustStorePassword={{ kafka_truststore_password }}"
+{% endif %}

@@ -1,0 +1,50 @@
+---
+# Kafka service management tasks
+
+- name: Create Kafka systemd service file
+  ansible.builtin.template:
+    src: kafka.service.j2
+    dest: /etc/systemd/system/{{ kafka_service_name }}.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart kafka
+
+- name: Ensure systemd is reloaded
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable Kafka service
+  ansible.builtin.systemd:
+    name: "{{ kafka_service_name }}"
+    enabled: "{{ kafka_service_enabled }}"
+
+- name: Start Kafka service
+  ansible.builtin.systemd:
+    name: "{{ kafka_service_name }}"
+    state: "{{ kafka_service_state }}"
+  register: kafka_service_result
+
+- name: Wait for Kafka to be ready
+  ansible.builtin.wait_for:
+    port: "{{ kafka_plaintext_port }}"
+    host: 127.0.0.1
+    delay: 10
+    timeout: 120
+    state: started
+  when:
+    - kafka_service_state == 'started'
+    - not (kafka_tls_enabled | default(false))
+
+- name: Wait for Kafka SSL port to be ready
+  ansible.builtin.wait_for:
+    port: "{{ kafka_ssl_port }}"
+    host: 127.0.0.1
+    delay: 10
+    timeout: 120
+    state: started
+  when:
+    - kafka_service_state == 'started'
+    - kafka_tls_enabled | default(false)

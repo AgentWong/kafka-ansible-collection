@@ -1,0 +1,20 @@
+---
+# Main tasks for the kafka role
+
+- name: Include install tasks
+  ansible.builtin.include_tasks: install.yml
+  tags:
+    - kafka
+    - install
+
+- name: Include configure tasks
+  ansible.builtin.include_tasks: configure.yml
+  tags:
+    - kafka
+    - configure
+
+- name: Include service tasks
+  ansible.builtin.include_tasks: service.yml
+  tags:
+    - kafka
+    - service

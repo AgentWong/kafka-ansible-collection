@@ -1,0 +1,34 @@
+---
+# Default variables for the rootca role
+
+# CA Certificate configuration
+rootca_common_name: "Kafka Cluster CA"
+rootca_organization: "Kafka Ansible Collection"
+rootca_organizational_unit: "Infrastructure"
+rootca_country: "US"
+rootca_state: "California"
+rootca_locality: "San Francisco"
+
+# Certificate paths
+rootca_cert_path: "/opt/kafka-ca"
+rootca_ca_cert_file: "{{ rootca_cert_path }}/ca.crt"
+rootca_ca_key_file: "{{ rootca_cert_path }}/ca.key"
+rootca_ca_csr_file: "{{ rootca_cert_path }}/ca.csr"
+
+# Certificate parameters
+rootca_key_size: 4096
+rootca_validity_days: 3650
+rootca_node_cert_validity_days: 365
+
+# Node certificate parameters
+rootca_node_key_size: 2048
+
+# Generate node certificates for these hosts
+rootca_generate_node_certs: true
+rootca_node_hosts: []
+
+# Java keystore configuration
+rootca_generate_keystores: true
+rootca_keystore_password: "changeit"
+rootca_truststore_password: "changeit"
+rootca_key_password: "changeit"

@@ -1,0 +1,83 @@
+---
+# Kafka installation tasks
+
+- name: Create Kafka group
+  ansible.builtin.group:
+    name: "{{ kafka_group }}"
+    state: present
+
+- name: Create Kafka user
+  ansible.builtin.user:
+    name: "{{ kafka_user }}"
+    group: "{{ kafka_group }}"
+    shell: /bin/bash
+    home: "/home/{{ kafka_user }}"
+    create_home: true
+    system: true
+    state: present
+
+- name: Create Kafka directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_group }}"
+    mode: "0755"
+  loop:
+    - "{{ kafka_data_dir }}"
+    - "{{ kafka_log_dirs }}"
+    - "{{ kafka_log_dir }}"
+
+- name: Check if Kafka is already installed
+  ansible.builtin.stat:
+    path: "{{ kafka_version_dir }}"
+  register: kafka_installed
+
+- name: Download Kafka
+  ansible.builtin.get_url:
+    url: "{{ kafka_download_url }}"
+    dest: "/tmp/kafka_{{ kafka_scala_version }}-{{ kafka_version }}.tgz"
+    mode: "0644"
+    checksum: "{{ kafka_checksum | default(omit) }}"
+  when: not kafka_installed.stat.exists
+
+- name: Create installation directory
+  ansible.builtin.file:
+    path: "{{ kafka_version_dir }}"
+    state: directory
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_group }}"
+    mode: "0755"
+  when: not kafka_installed.stat.exists
+
+- name: Extract Kafka archive
+  ansible.builtin.unarchive:
+    src: "/tmp/kafka_{{ kafka_scala_version }}-{{ kafka_version }}.tgz"
+    dest: "{{ kafka_version_dir }}"
+    remote_src: true
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_group }}"
+    extra_opts:
+      - --strip-components=1
+  when: not kafka_installed.stat.exists
+
+- name: Create symlink to current version
+  ansible.builtin.file:
+    src: "{{ kafka_version_dir }}"
+    dest: "{{ kafka_symlink }}"
+    state: link
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_group }}"
+
+- name: Set ownership of Kafka installation
+  ansible.builtin.file:
+    path: "{{ kafka_version_dir }}"
+    owner: "{{ kafka_user }}"
+    group: "{{ kafka_group }}"
+    recurse: true
+
+- name: Clean up downloaded archive
+  ansible.builtin.file:
+    path: "/tmp/kafka_{{ kafka_scala_version }}-{{ kafka_version }}.tgz"
+    state: absent
+  when: not kafka_installed.stat.exists

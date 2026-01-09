@@ -1,0 +1,49 @@
+---
+# Shared Molecule configuration for Kafka Ansible Collection
+# This file is included by all Molecule scenarios
+
+# Driver configuration for Docker with systemd support
+driver:
+  name: docker
+
+# Provisioner configuration
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_FORCE_COLOR: "true"
+    ANSIBLE_VERBOSITY: "1"
+  config_options:
+    defaults:
+      callbacks_enabled: profile_tasks
+      gathering: smart
+      fact_caching: jsonfile
+      fact_caching_connection: /tmp/ansible_facts_cache
+      fact_caching_timeout: 3600
+      stdout_callback: yaml
+    ssh_connection:
+      pipelining: true
+  inventory:
+    links:
+      group_vars: ../inventory/group_vars/
+
+# Verifier configuration
+verifier:
+  name: ansible
+
+# Scenario configuration
+scenario:
+  create_sequence:
+    - create
+    - prepare
+  converge_sequence:
+    - converge
+  destroy_sequence:
+    - destroy
+  test_sequence:
+    - destroy
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy

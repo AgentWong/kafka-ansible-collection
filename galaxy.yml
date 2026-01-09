@@ -1,0 +1,40 @@
+---
+namespace: hermanwong
+name: kafka
+version: 1.0.0
+readme: README.md
+authors:
+  - Herman Wong <hermanwong@example.com>
+description: >-
+  Ansible collection for deploying production-grade Apache Kafka clusters
+  with ZooKeeper coordination and TLS security. Demonstrates AI-assisted
+  development methodology with comprehensive Molecule testing.
+license:
+  - Apache-2.0
+license_file: LICENSE
+tags:
+  - kafka
+  - zookeeper
+  - messaging
+  - streaming
+  - tls
+  - security
+  - cluster
+  - devops
+  - infrastructure
+dependencies: {}
+repository: https://github.com/AgentWong/kafka-ansible-collection
+documentation: https://github.com/AgentWong/kafka-ansible-collection/blob/main/README.md
+homepage: https://github.com/AgentWong/kafka-ansible-collection
+issues: https://github.com/AgentWong/kafka-ansible-collection/issues
+build_ignore:
+  - .gitignore
+  - .github
+  - .ai_references
+  - .molecule
+  - .cache
+  - .vscode
+  - tests
+  - "*.tar.gz"
+  - molecule
+  - containers

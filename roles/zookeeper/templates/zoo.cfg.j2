@@ -1,0 +1,57 @@
+# ZooKeeper configuration file
+# Managed by Ansible - do not edit manually
+
+# The number of milliseconds of each tick
+tickTime={{ zookeeper_tick_time }}
+
+# The number of ticks that the initial synchronization phase can take
+initLimit={{ zookeeper_init_limit }}
+
+# The number of ticks that can pass between sending a request and getting an acknowledgement
+syncLimit={{ zookeeper_sync_limit }}
+
+# The directory where the snapshot is stored
+dataDir={{ zookeeper_data_dir }}
+
+# The directory where the transaction log is stored
+dataLogDir={{ zookeeper_data_log_dir }}
+
+# The port at which the clients will connect
+clientPort={{ zookeeper_client_port }}
+
+# The maximum number of client connections
+maxClientCnxns={{ zookeeper_max_client_cnxns }}
+
+# Autopurge settings
+autopurge.snapRetainCount={{ zookeeper_autopurge_snap_retain_count }}
+autopurge.purgeInterval={{ zookeeper_autopurge_purge_interval }}
+
+# Four Letter Words whitelist
+4lw.commands.whitelist={{ zookeeper_4lw_commands_whitelist }}
+
+# Admin server (disable for security)
+admin.enableServer=false
+
+{% if zookeeper_cluster_nodes | length > 0 %}
+# Cluster configuration
+{% for node in zookeeper_cluster_nodes %}
+server.{{ loop.index }}={{ node }}:{{ zookeeper_peer_port }}:{{ zookeeper_election_port }}
+{% endfor %}
+{% endif %}
+
+{% if zookeeper_tls_enabled %}
+# TLS/SSL Configuration
+secureClientPort={{ zookeeper_ssl_client_port }}
+ssl.clientAuth=need
+ssl.keyStore.location={{ zookeeper_keystore_path }}
+ssl.keyStore.password={{ zookeeper_keystore_password }}
+ssl.trustStore.location={{ zookeeper_truststore_path }}
+ssl.trustStore.password={{ zookeeper_truststore_password }}
+
+# Quorum TLS
+ssl.quorum.keyStore.location={{ zookeeper_keystore_path }}
+ssl.quorum.keyStore.password={{ zookeeper_keystore_password }}
+ssl.quorum.trustStore.location={{ zookeeper_truststore_path }}
+ssl.quorum.trustStore.password={{ zookeeper_truststore_password }}
+sslQuorum=true
+{% endif %}

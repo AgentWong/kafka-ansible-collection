@@ -1,0 +1,20 @@
+---
+# Handlers for the kafka role
+
+- name: Restart kafka
+  ansible.builtin.systemd:
+    name: "{{ kafka_service_name }}"
+    state: restarted
+    daemon_reload: true
+  listen: restart kafka
+
+- name: Reload kafka
+  ansible.builtin.systemd:
+    name: "{{ kafka_service_name }}"
+    state: reloaded
+  listen: reload kafka
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  listen: reload systemd

@@ -1,0 +1,28 @@
+---
+# Metadata for the zookeeper role
+
+galaxy_info:
+  author: Herman Wong
+  description: Apache ZooKeeper cluster deployment with TLS support
+  company: ""
+  license: Apache-2.0
+  min_ansible_version: "2.15"
+
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+    - name: Ubuntu
+      versions:
+        - jammy
+
+  galaxy_tags:
+    - zookeeper
+    - kafka
+    - cluster
+    - coordination
+    - distributed
+
+dependencies:
+  - role: common
+  - role: java

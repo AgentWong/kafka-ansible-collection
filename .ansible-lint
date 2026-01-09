@@ -1,0 +1,16 @@
+---
+profile: production
+
+exclude_paths:
+  - .github/
+  - containers/
+  - .cache/
+  - .git/
+
+skip_list:
+  - yaml[line-length]
+  - name[casing]
+
+warn_list:
+  - experimental
+  - role-name

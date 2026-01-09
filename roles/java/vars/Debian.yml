@@ -1,0 +1,4 @@
+---
+# Debian-specific variables for the java role
+
+java_package_name: "openjdk-{{ java_version }}-jdk-headless"

@@ -1,0 +1,43 @@
+---
+# Full Kafka cluster deployment playbook
+# Deploys Root CA, ZooKeeper, and Kafka
+
+- name: Generate TLS certificates on Root CA
+  hosts: rootca
+  gather_facts: true
+  roles:
+    - role: rootca
+      vars:
+        rootca_node_hosts: "{{ groups['zookeeper'] + groups['kafka'] }}"
+
+- name: Apply common configuration to all cluster nodes
+  hosts: zookeeper:kafka
+  gather_facts: true
+  roles:
+    - role: common
+
+- name: Install Java on all cluster nodes
+  hosts: zookeeper:kafka
+  gather_facts: true
+  roles:
+    - role: java
+
+- name: Deploy ZooKeeper cluster
+  hosts: zookeeper
+  gather_facts: true
+  serial: 1
+  roles:
+    - role: zookeeper
+      vars:
+        zookeeper_cluster_nodes: "{{ groups['zookeeper'] }}"
+        zookeeper_myid: "{{ groups['zookeeper'].index(inventory_hostname) + 1 }}"
+
+- name: Deploy Kafka cluster
+  hosts: kafka
+  gather_facts: true
+  serial: 1
+  roles:
+    - role: kafka
+      vars:
+        kafka_broker_id: "{{ groups['kafka'].index(inventory_hostname) + 1 }}"
+        kafka_zookeeper_connect: "{{ groups['zookeeper'] | map('regex_replace', '^(.*)$', '\\1:2181') | join(',') }}"

@@ -1,0 +1,57 @@
+---
+# ZooKeeper configuration tasks
+
+- name: Create ZooKeeper configuration file
+  ansible.builtin.template:
+    src: zoo.cfg.j2
+    dest: "{{ zookeeper_config_file }}"
+    owner: "{{ zookeeper_user }}"
+    group: "{{ zookeeper_group }}"
+    mode: "0644"
+  notify: restart zookeeper
+
+- name: Create myid file
+  ansible.builtin.copy:
+    content: "{{ zookeeper_myid }}"
+    dest: "{{ zookeeper_data_dir }}/myid"
+    owner: "{{ zookeeper_user }}"
+    group: "{{ zookeeper_group }}"
+    mode: "0644"
+  notify: restart zookeeper
+
+- name: Create ZooKeeper environment file
+  ansible.builtin.template:
+    src: java.env.j2
+    dest: "{{ zookeeper_conf_dir }}/java.env"
+    owner: "{{ zookeeper_user }}"
+    group: "{{ zookeeper_group }}"
+    mode: "0644"
+  notify: restart zookeeper
+
+- name: Create ZooKeeper log4j configuration
+  ansible.builtin.template:
+    src: log4j.properties.j2
+    dest: "{{ zookeeper_conf_dir }}/log4j.properties"
+    owner: "{{ zookeeper_user }}"
+    group: "{{ zookeeper_group }}"
+    mode: "0644"
+  notify: restart zookeeper
+
+- name: Create TLS truststore
+  when: zookeeper_tls_enabled | bool
+  block:
+    - name: Check if CA certificate exists
+      ansible.builtin.stat:
+        path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/ca.crt"
+      register: ca_cert_stat
+
+    - name: Create truststore from CA certificate
+      community.general.java_cert:
+        cert_path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/ca.crt"
+        cert_alias: kafka-ca
+        keystore_path: "{{ zookeeper_truststore_path }}"
+        keystore_pass: "{{ zookeeper_truststore_password }}"
+        keystore_create: true
+        trust_cacert: true
+        state: present
+      when: ca_cert_stat.stat.exists

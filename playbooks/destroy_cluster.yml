@@ -1,0 +1,81 @@
+---
+# Cluster teardown playbook
+
+- name: Stop Kafka services
+  hosts: kafka
+  gather_facts: false
+  tasks:
+    - name: Stop Kafka service
+      ansible.builtin.systemd:
+        name: kafka
+        state: stopped
+      failed_when: false
+
+    - name: Disable Kafka service
+      ansible.builtin.systemd:
+        name: kafka
+        enabled: false
+      failed_when: false
+
+- name: Stop ZooKeeper services
+  hosts: zookeeper
+  gather_facts: false
+  tasks:
+    - name: Stop ZooKeeper service
+      ansible.builtin.systemd:
+        name: zookeeper
+        state: stopped
+      failed_when: false
+
+    - name: Disable ZooKeeper service
+      ansible.builtin.systemd:
+        name: zookeeper
+        enabled: false
+      failed_when: false
+
+- name: Clean up cluster data (optional)
+  hosts: zookeeper:kafka
+  gather_facts: false
+  vars:
+    destroy_data: false
+  tasks:
+    - name: Remove Kafka data
+      ansible.builtin.file:
+        path: /var/lib/kafka
+        state: absent
+      when:
+        - destroy_data | bool
+        - inventory_hostname in groups['kafka']
+
+    - name: Remove ZooKeeper data
+      ansible.builtin.file:
+        path: /var/lib/zookeeper
+        state: absent
+      when:
+        - destroy_data | bool
+        - inventory_hostname in groups['zookeeper']
+
+    - name: Remove log files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/log/kafka
+        - /var/log/zookeeper
+      when: destroy_data | bool
+
+- name: Display teardown summary
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Display summary
+      ansible.builtin.debug:
+        msg: |
+          Cluster teardown complete.
+          Services have been stopped and disabled.
+          {% if destroy_data | default(false) %}
+          Data directories have been removed.
+          {% else %}
+          Data directories have been preserved.
+          Run with -e destroy_data=true to remove data.
+          {% endif %}

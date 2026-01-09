@@ -1,0 +1,125 @@
+---
+# Verify playbook for Molecule testing
+# Comprehensive cluster health verification
+
+- name: Verify ZooKeeper cluster health
+  hosts: zookeeper
+  gather_facts: false
+  tasks:
+    - name: Check ZooKeeper service is running
+      ansible.builtin.systemd:
+        name: zookeeper
+      register: zk_service
+      failed_when: zk_service.status.ActiveState != 'active'
+
+    - name: Check ZooKeeper is responding (ruok)
+      ansible.builtin.command: >
+        echo ruok | nc localhost {{ zookeeper_client_port | default(2181) }}
+      register: zk_ruok
+      changed_when: false
+      failed_when: "'imok' not in zk_ruok.stdout"
+
+    - name: Get ZooKeeper status (stat)
+      ansible.builtin.command: >
+        echo stat | nc localhost {{ zookeeper_client_port | default(2181) }}
+      register: zk_stat
+      changed_when: false
+
+    - name: Display ZooKeeper status
+      ansible.builtin.debug:
+        msg: |
+          Node: {{ inventory_hostname }}
+          Status: {{ zk_stat.stdout_lines | select('match', '.*Mode:.*') | list | first | default('Unknown') }}
+
+    - name: Verify ZooKeeper quorum has a leader
+      ansible.builtin.assert:
+        that:
+          - "'leader' in zk_stat.stdout or 'follower' in zk_stat.stdout"
+        fail_msg: "ZooKeeper node is not part of a quorum (no leader/follower status)"
+        success_msg: "ZooKeeper node is part of a quorum"
+
+- name: Verify Kafka cluster health
+  hosts: kafka
+  gather_facts: false
+  tasks:
+    - name: Check Kafka service is running
+      ansible.builtin.systemd:
+        name: kafka
+      register: kafka_service
+      failed_when: kafka_service.status.ActiveState != 'active'
+
+    - name: Check Kafka broker is listening on plaintext port
+      ansible.builtin.wait_for:
+        port: "{{ kafka_plaintext_port | default(9092) }}"
+        timeout: 30
+        state: started
+      when: not (kafka_tls_enabled | default(true))
+
+    - name: Check Kafka broker is listening on SSL port
+      ansible.builtin.wait_for:
+        port: "{{ kafka_ssl_port | default(9093) }}"
+        timeout: 30
+        state: started
+      when: kafka_tls_enabled | default(true)
+
+    - name: Get Kafka broker metadata
+      ansible.builtin.command: >
+        {{ kafka_install_dir | default('/opt/kafka') }}/bin/kafka-broker-api-versions.sh
+        --bootstrap-server localhost:{{ kafka_plaintext_port | default(9092) }}
+      register: kafka_metadata
+      changed_when: false
+      failed_when: kafka_metadata.rc != 0
+      when: not (kafka_tls_enabled | default(true))
+
+    - name: Display Kafka broker status
+      ansible.builtin.debug:
+        msg: |
+          Node: {{ inventory_hostname }}
+          Broker ID: {{ kafka_broker_id | default('Unknown') }}
+          Service Status: {{ kafka_service.status.ActiveState }}
+
+- name: Verify cluster connectivity
+  hosts: kafka[0]
+  gather_facts: false
+  tasks:
+    - name: Create test topic
+      ansible.builtin.command: >
+        {{ kafka_install_dir | default('/opt/kafka') }}/bin/kafka-topics.sh
+        --create
+        --topic molecule-test-topic
+        --partitions 3
+        --replication-factor 3
+        --bootstrap-server localhost:{{ kafka_plaintext_port | default(9092) }}
+      register: create_topic
+      changed_when: "'Created topic' in create_topic.stdout"
+      failed_when: create_topic.rc != 0 and 'already exists' not in create_topic.stderr
+      when: not (kafka_tls_enabled | default(true))
+
+    - name: List topics
+      ansible.builtin.command: >
+        {{ kafka_install_dir | default('/opt/kafka') }}/bin/kafka-topics.sh
+        --list
+        --bootstrap-server localhost:{{ kafka_plaintext_port | default(9092) }}
+      register: topic_list
+      changed_when: false
+      when: not (kafka_tls_enabled | default(true))
+
+    - name: Display topics
+      ansible.builtin.debug:
+        msg: "Topics: {{ topic_list.stdout_lines | default([]) }}"
+      when: not (kafka_tls_enabled | default(true))
+
+- name: Summary
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Display verification summary
+      ansible.builtin.debug:
+        msg: |
+          ╔═══════════════════════════════════════════════════════════════╗
+          ║                    CLUSTER VERIFICATION COMPLETE              ║
+          ╠═══════════════════════════════════════════════════════════════╣
+          ║  ZooKeeper Nodes: {{ groups['zookeeper'] | length }}                                         ║
+          ║  Kafka Brokers:   {{ groups['kafka'] | length }}                                         ║
+          ║  TLS Enabled:     {{ kafka_tls_enabled | default(true) }}                                       ║
+          ╚═══════════════════════════════════════════════════════════════╝

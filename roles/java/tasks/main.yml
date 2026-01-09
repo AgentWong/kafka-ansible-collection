@@ -1,0 +1,89 @@
+---
+# Main tasks for the java role
+
+- name: Include OS-specific variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - files:
+        - "{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.yml"
+        - "{{ ansible_os_family }}-{{ ansible_distribution_major_version }}.yml"
+        - "{{ ansible_os_family }}.yml"
+        - default.yml
+      paths:
+        - "{{ role_path }}/vars"
+  tags:
+    - java
+    - always
+
+- name: Install Java (RedHat)
+  ansible.builtin.dnf:
+    name: "{{ java_package_name }}"
+    state: present
+  when: ansible_os_family == 'RedHat'
+  tags:
+    - java
+    - packages
+
+- name: Install Java (Debian)
+  ansible.builtin.apt:
+    name: "{{ java_package_name }}"
+    state: present
+    update_cache: true
+  when: ansible_os_family == 'Debian'
+  tags:
+    - java
+    - packages
+
+- name: Find Java installation path
+  ansible.builtin.shell: |
+    set -o pipefail
+    dirname $(dirname $(readlink -f $(which java)))
+  args:
+    executable: /bin/bash
+  register: java_home_result
+  changed_when: false
+  when: java_set_java_home | default(true)
+  tags:
+    - java
+    - configuration
+
+- name: Set JAVA_HOME fact
+  ansible.builtin.set_fact:
+    java_home: "{{ java_home_result.stdout }}"
+  when:
+    - java_set_java_home | default(true)
+    - java_home_result.stdout is defined
+  tags:
+    - java
+    - configuration
+
+- name: Configure JAVA_HOME in profile
+  ansible.builtin.template:
+    src: java.sh.j2
+    dest: "{{ java_home_profile_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: java_set_java_home | default(true)
+  tags:
+    - java
+    - configuration
+
+- name: Validate Java installation
+  ansible.builtin.command: java -version
+  register: java_version_output
+  changed_when: false
+  when: java_validate_installation | default(true)
+  tags:
+    - java
+    - validation
+
+- name: Display Java version
+  ansible.builtin.debug:
+    msg: "Java version installed: {{ java_version_output.stderr_lines[0] | default('Unknown') }}"
+  when:
+    - java_validate_installation | default(true)
+    - java_version_output.stderr_lines is defined
+  tags:
+    - java
+    - validation

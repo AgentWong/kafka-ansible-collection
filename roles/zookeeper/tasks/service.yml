@@ -1,0 +1,48 @@
+---
+# ZooKeeper service management tasks
+
+- name: Create ZooKeeper systemd service file
+  ansible.builtin.template:
+    src: zookeeper.service.j2
+    dest: /etc/systemd/system/{{ zookeeper_service_name }}.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - reload systemd
+    - restart zookeeper
+
+- name: Ensure systemd is reloaded
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable ZooKeeper service
+  ansible.builtin.systemd:
+    name: "{{ zookeeper_service_name }}"
+    enabled: "{{ zookeeper_service_enabled }}"
+
+- name: Start ZooKeeper service
+  ansible.builtin.systemd:
+    name: "{{ zookeeper_service_name }}"
+    state: "{{ zookeeper_service_state }}"
+  register: zookeeper_service_result
+
+- name: Wait for ZooKeeper to be ready
+  ansible.builtin.wait_for:
+    port: "{{ zookeeper_client_port }}"
+    host: 127.0.0.1
+    delay: 5
+    timeout: 60
+    state: started
+  when: zookeeper_service_state == 'started'
+
+- name: Verify ZooKeeper is responding
+  ansible.builtin.command: >
+    echo ruok | nc localhost {{ zookeeper_client_port }}
+  register: zookeeper_ruok
+  changed_when: false
+  failed_when: "'imok' not in zookeeper_ruok.stdout"
+  retries: 5
+  delay: 5
+  until: "'imok' in zookeeper_ruok.stdout"
+  when: zookeeper_service_state == 'started'

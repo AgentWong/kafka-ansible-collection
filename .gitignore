@@ -61,3 +61,19 @@ AGENTS.md
 
 # Temp files
 tests/temp
+
+# Molecule
+.molecule/
+.cache/
+molecule/**/instance_config.yml
+molecule/**/.molecule/
+
+# Ansible Galaxy build artifacts
+*.tar.gz
+
+# Ansible retry files
+*.retry
+
+# Test artifacts
+test-results/
+junit/

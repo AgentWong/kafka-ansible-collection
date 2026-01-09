@@ -1,0 +1,92 @@
+---
+# Main tasks for the rootca role
+# Generates a self-signed Root CA and optionally node certificates
+
+- name: Create CA directory
+  ansible.builtin.file:
+    path: "{{ rootca_cert_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - rootca
+    - directories
+
+- name: Generate Root CA private key
+  community.crypto.openssl_privatekey:
+    path: "{{ rootca_ca_key_file }}"
+    size: "{{ rootca_key_size }}"
+    type: RSA
+    mode: "0600"
+  tags:
+    - rootca
+    - certificates
+
+- name: Generate Root CA CSR
+  community.crypto.openssl_csr:
+    path: "{{ rootca_ca_csr_file }}"
+    privatekey_path: "{{ rootca_ca_key_file }}"
+    common_name: "{{ rootca_common_name }}"
+    organization_name: "{{ rootca_organization }}"
+    organizational_unit_name: "{{ rootca_organizational_unit }}"
+    country_name: "{{ rootca_country }}"
+    state_or_province_name: "{{ rootca_state }}"
+    locality_name: "{{ rootca_locality }}"
+    basic_constraints:
+      - CA:TRUE
+    basic_constraints_critical: true
+    key_usage:
+      - keyCertSign
+      - cRLSign
+    key_usage_critical: true
+  tags:
+    - rootca
+    - certificates
+
+- name: Generate Root CA certificate (self-signed)
+  community.crypto.x509_certificate:
+    path: "{{ rootca_ca_cert_file }}"
+    csr_path: "{{ rootca_ca_csr_file }}"
+    privatekey_path: "{{ rootca_ca_key_file }}"
+    provider: selfsigned
+    selfsigned_not_after: "+{{ rootca_validity_days }}d"
+    mode: "0644"
+  tags:
+    - rootca
+    - certificates
+
+- name: Read CA certificate for distribution
+  ansible.builtin.slurp:
+    src: "{{ rootca_ca_cert_file }}"
+  register: rootca_cert_content
+  tags:
+    - rootca
+    - certificates
+
+- name: Read CA private key for signing
+  ansible.builtin.slurp:
+    src: "{{ rootca_ca_key_file }}"
+  register: rootca_key_content
+  tags:
+    - rootca
+    - certificates
+
+- name: Set CA certificate facts for distribution
+  ansible.builtin.set_fact:
+    rootca_certificate: "{{ rootca_cert_content.content | b64decode }}"
+    rootca_private_key: "{{ rootca_key_content.content | b64decode }}"
+    cacheable: true
+  tags:
+    - rootca
+    - certificates
+
+- name: Generate node certificates
+  ansible.builtin.include_tasks: generate_node_cert.yml
+  loop: "{{ rootca_node_hosts }}"
+  loop_control:
+    loop_var: node_hostname
+  when: rootca_generate_node_certs | default(true)
+  tags:
+    - rootca
+    - node-certificates

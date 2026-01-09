@@ -1,0 +1,33 @@
+[Unit]
+Description=Apache ZooKeeper
+Documentation=https://zookeeper.apache.org/doc/current/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ zookeeper_user }}
+Group={{ zookeeper_group }}
+Environment="JAVA_HOME={{ java_home | default('/usr/lib/jvm/jre') }}"
+Environment="ZOO_LOG_DIR={{ zookeeper_log_dir }}"
+Environment="ZOOCFGDIR={{ zookeeper_conf_dir }}"
+ExecStart={{ zookeeper_install_dir }}/bin/zkServer.sh start-foreground
+ExecStop={{ zookeeper_install_dir }}/bin/zkServer.sh stop
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=180
+TimeoutStopSec=30
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=32768
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths={{ zookeeper_data_dir }}
+ReadWritePaths={{ zookeeper_log_dir }}
+
+[Install]
+WantedBy=multi-user.target

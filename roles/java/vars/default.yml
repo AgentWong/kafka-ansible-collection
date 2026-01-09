@@ -1,0 +1,4 @@
+---
+# Default variables (fallback)
+
+java_package_name: "java-{{ java_version }}-openjdk-headless"

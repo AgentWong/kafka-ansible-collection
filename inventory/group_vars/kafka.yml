@@ -1,0 +1,15 @@
+---
+# Kafka group variables
+
+kafka_version: "3.7.0"
+kafka_scala_version: "2.13"
+kafka_tls_enabled: "{{ tls_enabled | default(true) }}"
+kafka_heap_size: "1g"
+
+# Cluster configuration
+kafka_zookeeper_connect: "{{ groups['zookeeper'] | map('regex_replace', '^(.*)$', '\\1:2181') | join(',') }}"
+
+# Replication settings
+kafka_num_partitions: 3
+kafka_default_replication_factor: 3
+kafka_min_insync_replicas: 2

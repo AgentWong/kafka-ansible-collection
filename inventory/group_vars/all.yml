@@ -1,0 +1,13 @@
+---
+# Global variables for all hosts
+
+# TLS Configuration
+tls_enabled: true
+rootca_cert_path: /opt/kafka-ca
+
+# Java Configuration
+java_version: "17"
+
+# System Configuration
+common_configure_limits: true
+common_configure_sysctl: true

@@ -1,0 +1,51 @@
+---
+# Generate node certificate signed by the Root CA
+# This task file is included for each node_hostname
+
+- name: "Generate private key for {{ node_hostname }}"
+  community.crypto.openssl_privatekey:
+    path: "{{ rootca_cert_path }}/{{ node_hostname }}.key"
+    size: "{{ rootca_node_key_size }}"
+    type: RSA
+    mode: "0600"
+
+- name: "Generate CSR for {{ node_hostname }}"
+  community.crypto.openssl_csr:
+    path: "{{ rootca_cert_path }}/{{ node_hostname }}.csr"
+    privatekey_path: "{{ rootca_cert_path }}/{{ node_hostname }}.key"
+    common_name: "{{ node_hostname }}"
+    organization_name: "{{ rootca_organization }}"
+    country_name: "{{ rootca_country }}"
+    subject_alt_name:
+      - "DNS:{{ node_hostname }}"
+      - "DNS:localhost"
+      - "IP:127.0.0.1"
+    key_usage:
+      - digitalSignature
+      - keyEncipherment
+    extended_key_usage:
+      - serverAuth
+      - clientAuth
+
+- name: "Sign certificate for {{ node_hostname }}"
+  community.crypto.x509_certificate:
+    path: "{{ rootca_cert_path }}/{{ node_hostname }}.crt"
+    csr_path: "{{ rootca_cert_path }}/{{ node_hostname }}.csr"
+    provider: ownca
+    ownca_path: "{{ rootca_ca_cert_file }}"
+    ownca_privatekey_path: "{{ rootca_ca_key_file }}"
+    ownca_not_after: "+{{ rootca_node_cert_validity_days }}d"
+    mode: "0644"
+
+- name: "Generate PKCS12 keystore for {{ node_hostname }}"
+  community.crypto.openssl_pkcs12:
+    path: "{{ rootca_cert_path }}/{{ node_hostname }}.p12"
+    certificate_path: "{{ rootca_cert_path }}/{{ node_hostname }}.crt"
+    privatekey_path: "{{ rootca_cert_path }}/{{ node_hostname }}.key"
+    other_certificates:
+      - "{{ rootca_ca_cert_file }}"
+    passphrase: "{{ rootca_keystore_password }}"
+    friendly_name: "{{ node_hostname }}"
+    state: present
+    mode: "0600"
+  when: rootca_generate_keystores | default(true)

@@ -1,0 +1,73 @@
+---
+# Cluster health verification playbook
+
+- name: Verify ZooKeeper cluster health
+  hosts: zookeeper
+  gather_facts: false
+  tasks:
+    - name: Check ZooKeeper service is running
+      ansible.builtin.systemd:
+        name: zookeeper
+      register: zk_service
+      failed_when: zk_service.status.ActiveState != 'active'
+
+    - name: Check ZooKeeper is responding (ruok)
+      ansible.builtin.command: echo ruok | nc localhost 2181
+      register: zk_ruok
+      changed_when: false
+      failed_when: "'imok' not in zk_ruok.stdout"
+
+    - name: Get ZooKeeper status (stat)
+      ansible.builtin.command: echo stat | nc localhost 2181
+      register: zk_stat
+      changed_when: false
+
+    - name: Display ZooKeeper status
+      ansible.builtin.debug:
+        msg: |
+          Node: {{ inventory_hostname }}
+          Service: {{ zk_service.status.ActiveState }}
+          Mode: {{ zk_stat.stdout_lines | select('match', '.*Mode:.*') | list | first | default('Unknown') }}
+
+- name: Verify Kafka cluster health
+  hosts: kafka
+  gather_facts: false
+  tasks:
+    - name: Check Kafka service is running
+      ansible.builtin.systemd:
+        name: kafka
+      register: kafka_service
+      failed_when: kafka_service.status.ActiveState != 'active'
+
+    - name: Check Kafka broker is listening
+      ansible.builtin.wait_for:
+        port: 9092
+        timeout: 10
+        state: started
+
+    - name: Display Kafka status
+      ansible.builtin.debug:
+        msg: |
+          Node: {{ inventory_hostname }}
+          Service: {{ kafka_service.status.ActiveState }}
+
+- name: Verify cluster functionality
+  hosts: kafka[0]
+  gather_facts: false
+  tasks:
+    - name: List topics
+      ansible.builtin.command: >
+        /opt/kafka/bin/kafka-topics.sh --list --bootstrap-server localhost:9092
+      register: topic_list
+      changed_when: false
+
+    - name: Display cluster summary
+      ansible.builtin.debug:
+        msg: |
+          ╔═══════════════════════════════════════════════════════════════╗
+          ║                    CLUSTER HEALTH CHECK                       ║
+          ╠═══════════════════════════════════════════════════════════════╣
+          ║  ZooKeeper Nodes: {{ groups['zookeeper'] | length }}                                         ║
+          ║  Kafka Brokers:   {{ groups['kafka'] | length }}                                         ║
+          ║  Topics:          {{ topic_list.stdout_lines | length }}                                         ║
+          ╚═══════════════════════════════════════════════════════════════╝

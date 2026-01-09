@@ -1,0 +1,72 @@
+---
+# Default variables for the kafka role
+
+# Kafka version
+kafka_version: "3.7.0"
+kafka_scala_version: "2.13"
+kafka_download_url: "https://archive.apache.org/dist/kafka/{{ kafka_version }}/kafka_{{ kafka_scala_version }}-{{ kafka_version }}.tgz"
+kafka_checksum: ""
+
+# User and group
+kafka_user: kafka
+kafka_group: kafka
+
+# Installation paths
+kafka_install_dir: /opt/kafka
+kafka_version_dir: "{{ kafka_install_dir }}-{{ kafka_version }}"
+kafka_symlink: "{{ kafka_install_dir }}"
+
+# Data and log directories
+kafka_data_dir: /var/lib/kafka
+kafka_log_dir: /var/log/kafka
+
+# Configuration file path
+kafka_conf_dir: "{{ kafka_install_dir }}/config"
+kafka_config_file: "{{ kafka_conf_dir }}/server.properties"
+
+# Broker configuration
+kafka_broker_id: 1
+kafka_num_partitions: 3
+kafka_default_replication_factor: 3
+kafka_min_insync_replicas: 2
+
+# Network configuration
+kafka_plaintext_port: 9092
+kafka_ssl_port: 9093
+kafka_listeners: "PLAINTEXT://:{{ kafka_plaintext_port }}"
+kafka_advertised_listeners: "PLAINTEXT://{{ inventory_hostname }}:{{ kafka_plaintext_port }}"
+kafka_listener_security_protocol_map: "PLAINTEXT:PLAINTEXT,SSL:SSL"
+kafka_inter_broker_listener_name: "PLAINTEXT"
+
+# ZooKeeper connection
+kafka_zookeeper_connect: "localhost:2181"
+kafka_zookeeper_connection_timeout_ms: 18000
+
+# Log configuration
+kafka_log_dirs: "{{ kafka_data_dir }}/logs"
+kafka_num_recovery_threads_per_data_dir: 1
+kafka_log_retention_hours: 168
+kafka_log_retention_bytes: -1
+kafka_log_segment_bytes: 1073741824
+kafka_log_retention_check_interval_ms: 300000
+
+# JVM options
+kafka_heap_size: "1g"
+kafka_jvm_opts: "-Xmx{{ kafka_heap_size }} -Xms{{ kafka_heap_size }}"
+
+# TLS configuration
+kafka_tls_enabled: false
+kafka_keystore_path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/{{ inventory_hostname }}.p12"
+kafka_truststore_path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/truststore.jks"
+kafka_keystore_password: "changeit"
+kafka_truststore_password: "changeit"
+kafka_key_password: "changeit"
+kafka_ssl_client_auth: "required"
+
+# Service configuration
+kafka_service_name: kafka
+kafka_service_state: started
+kafka_service_enabled: true
+
+# Additional server.properties settings
+kafka_extra_properties: {}

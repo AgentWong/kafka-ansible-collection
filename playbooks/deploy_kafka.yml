@@ -1,0 +1,25 @@
+---
+# Kafka-only deployment playbook
+# Assumes ZooKeeper is already deployed
+
+- name: Apply common configuration to Kafka nodes
+  hosts: kafka
+  gather_facts: true
+  roles:
+    - role: common
+
+- name: Install Java on Kafka nodes
+  hosts: kafka
+  gather_facts: true
+  roles:
+    - role: java
+
+- name: Deploy Kafka cluster
+  hosts: kafka
+  gather_facts: true
+  serial: 1
+  roles:
+    - role: kafka
+      vars:
+        kafka_broker_id: "{{ groups['kafka'].index(inventory_hostname) + 1 }}"
+        kafka_zookeeper_connect: "{{ groups['zookeeper'] | map('regex_replace', '^(.*)$', '\\1:2181') | join(',') }}"

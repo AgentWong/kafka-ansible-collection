@@ -1,0 +1,9 @@
+---
+# ZooKeeper group variables
+
+zookeeper_version: "3.9.3"
+zookeeper_tls_enabled: "{{ tls_enabled | default(true) }}"
+zookeeper_heap_size: "512m"
+
+# Cluster configuration
+zookeeper_cluster_nodes: "{{ groups['zookeeper'] }}"

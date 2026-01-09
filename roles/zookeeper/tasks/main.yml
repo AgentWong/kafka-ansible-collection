@@ -1,0 +1,20 @@
+---
+# Main tasks for the zookeeper role
+
+- name: Include install tasks
+  ansible.builtin.include_tasks: install.yml
+  tags:
+    - zookeeper
+    - install
+
+- name: Include configure tasks
+  ansible.builtin.include_tasks: configure.yml
+  tags:
+    - zookeeper
+    - configure
+
+- name: Include service tasks
+  ansible.builtin.include_tasks: service.yml
+  tags:
+    - zookeeper
+    - service

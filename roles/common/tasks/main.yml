@@ -1,0 +1,147 @@
+---
+# Main tasks for the common role
+
+- name: Include OS-specific variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - files:
+        - "{{ ansible_os_family }}.yml"
+        - "{{ ansible_distribution }}.yml"
+        - default.yml
+      paths:
+        - "{{ role_path }}/vars"
+  tags:
+    - common
+    - always
+
+- name: Update package cache (Debian)
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_os_family == 'Debian'
+  tags:
+    - common
+    - packages
+
+- name: Update package cache (RedHat)
+  ansible.builtin.dnf:
+    update_cache: true
+  when: ansible_os_family == 'RedHat'
+  tags:
+    - common
+    - packages
+
+- name: Update all packages
+  ansible.builtin.package:
+    name: "*"
+    state: latest
+  when: common_update_packages | default(false)
+  tags:
+    - common
+    - packages
+
+- name: Install required packages (RedHat)
+  ansible.builtin.dnf:
+    name: "{{ common_packages_redhat }}"
+    state: present
+  when: ansible_os_family == 'RedHat'
+  tags:
+    - common
+    - packages
+
+- name: Install required packages (Debian)
+  ansible.builtin.apt:
+    name: "{{ common_packages_debian }}"
+    state: present
+  when: ansible_os_family == 'Debian'
+  tags:
+    - common
+    - packages
+
+- name: Create kafka group
+  ansible.builtin.group:
+    name: "{{ kafka_group }}"
+    gid: "{{ kafka_gid | default(omit) }}"
+    state: present
+  when: common_create_kafka_user | default(true)
+  tags:
+    - common
+    - users
+
+- name: Create kafka user
+  ansible.builtin.user:
+    name: "{{ kafka_user }}"
+    uid: "{{ kafka_uid | default(omit) }}"
+    group: "{{ kafka_group }}"
+    shell: /bin/bash
+    home: "/home/{{ kafka_user }}"
+    create_home: true
+    system: true
+    state: present
+  when: common_create_kafka_user | default(true)
+  tags:
+    - common
+    - users
+
+- name: Create zookeeper group
+  ansible.builtin.group:
+    name: "{{ zookeeper_group }}"
+    gid: "{{ zookeeper_gid | default(omit) }}"
+    state: present
+  when: common_create_zookeeper_user | default(true)
+  tags:
+    - common
+    - users
+
+- name: Create zookeeper user
+  ansible.builtin.user:
+    name: "{{ zookeeper_user }}"
+    uid: "{{ zookeeper_uid | default(omit) }}"
+    group: "{{ zookeeper_group }}"
+    shell: /bin/bash
+    home: "/home/{{ zookeeper_user }}"
+    create_home: true
+    system: true
+    state: present
+  when: common_create_zookeeper_user | default(true)
+  tags:
+    - common
+    - users
+
+- name: Create common directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner | default('root') }}"
+    group: "{{ item.group | default('root') }}"
+    mode: "{{ item.mode | default('0755') }}"
+  loop: "{{ common_directories }}"
+  tags:
+    - common
+    - directories
+
+- name: Configure system limits
+  community.general.pam_limits:
+    domain: "{{ item.domain }}"
+    limit_type: "{{ item.limit_type }}"
+    limit_item: "{{ item.limit_item }}"
+    value: "{{ item.value }}"
+  loop: "{{ common_ulimits }}"
+  when: common_configure_limits | default(true)
+  tags:
+    - common
+    - limits
+
+- name: Configure sysctl settings
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_set: true
+    state: present
+    reload: true
+  loop: "{{ common_sysctl_settings }}"
+  when: common_configure_sysctl | default(true)
+  failed_when: false
+  tags:
+    - common
+    - sysctl

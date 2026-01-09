@@ -1,0 +1,4 @@
+---
+# RedHat-specific variables for the java role
+
+java_package_name: "java-{{ java_version }}-openjdk-headless"

@@ -1,0 +1,75 @@
+---
+# Shared test variables for all Molecule scenarios
+# These variables are used across all test nodes
+
+# Java configuration
+java_version: "17"
+java_install_method: "package"
+
+# Root CA configuration
+rootca_common_name: "Kafka Test CA"
+rootca_organization: "Kafka Ansible Collection"
+rootca_country: "US"
+rootca_state: "California"
+rootca_locality: "San Francisco"
+rootca_cert_path: "/opt/kafka-ca"
+rootca_key_size: 4096
+rootca_validity_days: 3650
+
+# TLS configuration (shared across roles)
+tls_enabled: true
+tls_keystore_password: "changeit"
+tls_truststore_password: "changeit"
+tls_key_password: "changeit"
+
+# ZooKeeper configuration
+zookeeper_version: "3.9.3"
+zookeeper_user: "zookeeper"
+zookeeper_group: "zookeeper"
+zookeeper_install_dir: "/opt/zookeeper"
+zookeeper_data_dir: "/var/lib/zookeeper"
+zookeeper_log_dir: "/var/log/zookeeper"
+zookeeper_client_port: 2181
+zookeeper_peer_port: 2888
+zookeeper_election_port: 3888
+zookeeper_tls_enabled: true
+
+# Kafka configuration
+kafka_version: "3.7.0"
+kafka_scala_version: "2.13"
+kafka_user: "kafka"
+kafka_group: "kafka"
+kafka_install_dir: "/opt/kafka"
+kafka_data_dir: "/var/lib/kafka"
+kafka_log_dir: "/var/log/kafka"
+kafka_plaintext_port: 9092
+kafka_ssl_port: 9093
+kafka_tls_enabled: true
+
+# Common configuration
+common_packages:
+  - wget
+  - curl
+  - tar
+  - nc
+  - net-tools
+  - procps
+
+# System limits
+common_ulimits:
+  - domain: "{{ kafka_user | default('kafka') }}"
+    limit_type: soft
+    limit_item: nofile
+    value: 65536
+  - domain: "{{ kafka_user | default('kafka') }}"
+    limit_type: hard
+    limit_item: nofile
+    value: 65536
+  - domain: "{{ zookeeper_user | default('zookeeper') }}"
+    limit_type: soft
+    limit_item: nofile
+    value: 65536
+  - domain: "{{ zookeeper_user | default('zookeeper') }}"
+    limit_type: hard
+    limit_item: nofile
+    value: 65536
