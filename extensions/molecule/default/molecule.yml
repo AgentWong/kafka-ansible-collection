@@ -112,6 +112,19 @@ platforms:
     groups:
       - kafka
 
+  # Kafka UI container (no systemd needed)
+  - name: kafkaui1
+    image: provectuslabs/kafka-ui:latest
+    pre_build_image: true
+    networks:
+      - name: kafka-test-network
+    published_ports:
+      - 0.0.0.0:8080:8080/tcp
+    env:
+      KAFKA_CLUSTERS_0_NAME: kafka-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka1:9092,kafka2:9092,kafka3:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zk1:2181,zk2:2181,zk3:2181
+
 provisioner:
   name: ansible
   env:
