@@ -41,6 +41,8 @@ server.{{ loop.index }}={{ node }}:{{ zookeeper_peer_port }}:{{ zookeeper_electi
 
 {% if zookeeper_tls_enabled %}
 # TLS/SSL Configuration
+# Use Netty for SSL support
+serverCnxnFactory=org.apache.zookeeper.server.NettyServerCnxnFactory
 secureClientPort={{ zookeeper_ssl_client_port }}
 ssl.clientAuth=need
 ssl.keyStore.location={{ zookeeper_keystore_path }}

@@ -37,7 +37,7 @@
   when: zookeeper_service_state == 'started'
 
 - name: Verify ZooKeeper is responding
-  ansible.builtin.command: >
+  ansible.builtin.shell: >
     echo ruok | nc localhost {{ zookeeper_client_port }}
   register: zookeeper_ruok
   changed_when: false

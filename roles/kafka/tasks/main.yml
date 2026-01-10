@@ -13,6 +13,9 @@
     - kafka
     - configure
 
+- name: Flush handlers to restart Kafka before service checks
+  ansible.builtin.meta: flush_handlers
+
 - name: Include service tasks
   ansible.builtin.include_tasks: service.yml
   tags:

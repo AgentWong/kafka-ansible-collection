@@ -6,22 +6,30 @@
   hosts: all
   gather_facts: true
   roles:
-    - role: common
+    - role: hermanwong.kafka.common
 
 - name: Install Java on ZooKeeper and Kafka nodes
   hosts: zookeeper:kafka
   gather_facts: true
   roles:
-    - role: java
+    - role: hermanwong.kafka.java
 
 - name: Deploy ZooKeeper cluster
   hosts: zookeeper
   gather_facts: true
+  pre_tasks:
+    - name: Set ZooKeeper myid dynamically
+      ansible.builtin.set_fact:
+        zookeeper_myid: "{{ groups['zookeeper'].index(inventory_hostname) + 1 }}"
   roles:
-    - role: zookeeper
+    - role: hermanwong.kafka.zookeeper
 
 - name: Deploy Kafka cluster
   hosts: kafka
   gather_facts: true
+  pre_tasks:
+    - name: Set Kafka broker ID dynamically
+      ansible.builtin.set_fact:
+        kafka_broker_id: "{{ groups['kafka'].index(inventory_hostname) + 1 }}"
   roles:
-    - role: kafka
+    - role: hermanwong.kafka.kafka

@@ -136,3 +136,15 @@
         ownca_privatekey_content: "{{ rootca_private_key }}"
         ownca_not_after: "+365d"
         mode: "0644"
+
+    - name: Generate PKCS12 keystore for node
+      community.crypto.openssl_pkcs12:
+        path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/{{ inventory_hostname }}.p12"
+        certificate_path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/{{ inventory_hostname }}.crt"
+        privatekey_path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/{{ inventory_hostname }}.key"
+        other_certificates:
+          - "{{ rootca_cert_path | default('/opt/kafka-ca') }}/ca.crt"
+        passphrase: "{{ tls_keystore_password | default('changeit') }}"
+        friendly_name: "{{ inventory_hostname }}"
+        state: present
+        mode: "0600"

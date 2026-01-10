@@ -32,6 +32,10 @@ zookeeper_log_dir: "/var/log/zookeeper"
 zookeeper_client_port: 2181
 zookeeper_peer_port: 2888
 zookeeper_election_port: 3888
+zookeeper_cluster_nodes:
+  - zk1
+  - zk2
+  - zk3
 zookeeper_tls_enabled: true
 
 # Kafka configuration
@@ -45,6 +49,10 @@ kafka_log_dir: "/var/log/kafka"
 kafka_plaintext_port: 9092
 kafka_ssl_port: 9093
 kafka_tls_enabled: true
+kafka_listeners: "PLAINTEXT://:9092,SSL://:9093"
+kafka_advertised_listeners: "PLAINTEXT://{{ inventory_hostname }}:9092,SSL://{{ inventory_hostname }}:9093"
+kafka_inter_broker_listener_name: "SSL"
+kafka_zookeeper_connect: "zk1:2181,zk2:2181,zk3:2181"
 
 # Common configuration
 common_packages:

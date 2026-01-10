@@ -8,7 +8,7 @@ LABEL description="Rocky Linux 9 with systemd for Ansible Molecule testing"
 
 # Install systemd and dependencies
 RUN dnf -y update && \
-    dnf -y install \
+    dnf -y install --allowerasing \
         systemd \
         systemd-libs \
         dbus \
@@ -34,7 +34,11 @@ RUN dnf -y update && \
     rm -rf /var/cache/dnf
 
 # Set Python 3.11 as default
-RUN alternatives --set python3 /usr/bin/python3.11
+RUN alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
+    alternatives --set python3 /usr/bin/python3.11
+
+# Install Python packages needed by Ansible modules
+RUN python3.11 -m pip install --no-cache-dir cryptography
 
 # Configure systemd
 # Remove unnecessary systemd services
