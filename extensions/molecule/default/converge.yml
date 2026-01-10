@@ -3,7 +3,7 @@
 # This is the main deployment playbook for the Kafka cluster
 
 - name: Apply common role to all nodes
-  hosts: all
+  hosts: all:!kafkaui
   gather_facts: true
   roles:
     - role: hermanwong.kafka.common

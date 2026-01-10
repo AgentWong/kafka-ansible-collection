@@ -53,14 +53,14 @@
         port: "{{ kafka_plaintext_port | default(9092) }}"
         timeout: 30
         state: started
-      when: not (kafka_tls_enabled | default(true))
+      when: not (kafka_tls_enabled | default(false))
 
     - name: Check Kafka broker is listening on SSL port
       ansible.builtin.wait_for:
         port: "{{ kafka_ssl_port | default(9093) }}"
         timeout: 30
         state: started
-      when: kafka_tls_enabled | default(true)
+      when: kafka_tls_enabled | default(false)
 
     - name: Get Kafka broker metadata
       ansible.builtin.command: >
@@ -69,7 +69,7 @@
       register: kafka_metadata
       changed_when: false
       failed_when: kafka_metadata.rc != 0
-      when: not (kafka_tls_enabled | default(true))
+      when: not (kafka_tls_enabled | default(false))
 
     - name: Display Kafka broker status
       ansible.builtin.debug:
@@ -93,7 +93,7 @@
       register: create_topic
       changed_when: "'Created topic' in create_topic.stdout"
       failed_when: create_topic.rc != 0 and 'already exists' not in create_topic.stderr
-      when: not (kafka_tls_enabled | default(true))
+      when: not (kafka_tls_enabled | default(false))
 
     - name: List topics
       ansible.builtin.command: >
@@ -102,12 +102,42 @@
         --bootstrap-server localhost:{{ kafka_plaintext_port | default(9092) }}
       register: topic_list
       changed_when: false
-      when: not (kafka_tls_enabled | default(true))
+      when: not (kafka_tls_enabled | default(false))
 
     - name: Display topics
       ansible.builtin.debug:
         msg: "Topics: {{ topic_list.stdout_lines | default([]) }}"
-      when: not (kafka_tls_enabled | default(true))
+      when: not (kafka_tls_enabled | default(false))
+
+- name: Verify Kafka UI health
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Wait for Kafka UI to be ready
+      ansible.builtin.uri:
+        url: "http://localhost:8080/api/clusters"
+        method: GET
+        status_code: 200
+        return_content: true
+      register: kafkaui_response
+      retries: 10
+      delay: 5
+      until: kafkaui_response.status == 200
+
+    - name: Verify Kafka UI can see the cluster
+      ansible.builtin.assert:
+        that:
+          - kafkaui_response.json | length > 0
+          - kafkaui_response.json[0].name == 'kafka-cluster'
+        fail_msg: "Kafka UI is not properly connected to the cluster"
+        success_msg: "Kafka UI is connected and can see the cluster"
+
+    - name: Display Kafka UI cluster info
+      ansible.builtin.debug:
+        msg: |
+          Kafka UI Status: OK
+          Cluster Name: {{ kafkaui_response.json[0].name }}
+          Cluster Status: {{ kafkaui_response.json[0].status | default('Unknown') }}
 
 - name: Summary
   hosts: localhost
@@ -119,7 +149,8 @@
           ╔═══════════════════════════════════════════════════════════════╗
           ║                    CLUSTER VERIFICATION COMPLETE              ║
           ╠═══════════════════════════════════════════════════════════════╣
-          ║  ZooKeeper Nodes: {{ groups['zookeeper'] | length }}                                         ║
-          ║  Kafka Brokers:   {{ groups['kafka'] | length }}                                         ║
-          ║  TLS Enabled:     {{ kafka_tls_enabled | default(true) }}                                       ║
+          ║  ZooKeeper Nodes: {{ groups['zookeeper'] | length }}          ║
+          ║  Kafka Brokers:   {{ groups['kafka'] | length }}              ║
+          ║  Kafka UI:        {{ groups['kafkaui'] | length }}            ║
+          ║  TLS Enabled:     {{ kafka_tls_enabled | default(false) }}    ║
           ╚═══════════════════════════════════════════════════════════════╝
