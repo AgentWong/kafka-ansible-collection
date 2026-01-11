@@ -30,7 +30,7 @@ Run the complete Molecule testing workflow with automatic error fixing. Continue
 ## Phase 1: Converge
 
 ```bash
-molecule converge 2>&1 | grep -E "(FAILED|fatal:|ERROR|PLAY RECAP|Scenario|changed=|ok=)" -A 15
+molecule converge 2>&1 | grep -E "(FAILED|fatal:|ERROR|PLAY RECAP|Scenario|ok=)" -A 15
 ```
 
 ## Phase 2: Idempotence
