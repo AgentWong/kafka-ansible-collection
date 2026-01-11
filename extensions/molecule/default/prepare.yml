@@ -3,7 +3,7 @@
 # This runs before converge to set up prerequisites
 
 - name: Prepare all nodes
-  hosts: all
+  hosts: all:!kafkaui
   gather_facts: true
   tasks:
     - name: Wait for systemd to be ready
@@ -80,10 +80,10 @@
         rootca_private_key: "{{ ca_key_content.content | b64decode }}"
       delegate_facts: true
       delegate_to: "{{ item }}"
-      loop: "{{ groups['all'] }}"
+      loop: "{{ groups['all'] | difference(groups['kafkaui'] | default([])) }}"
 
 - name: Distribute CA certificates to all nodes
-  hosts: all:!rootca
+  hosts: all:!rootca:!kafkaui
   gather_facts: false
   tasks:
     - name: Create CA directory
@@ -136,3 +136,15 @@
         ownca_privatekey_content: "{{ rootca_private_key }}"
         ownca_not_after: "+365d"
         mode: "0644"
+
+    - name: Generate PKCS12 keystore for node
+      community.crypto.openssl_pkcs12:
+        path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/{{ inventory_hostname }}.p12"
+        certificate_path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/{{ inventory_hostname }}.crt"
+        privatekey_path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}/{{ inventory_hostname }}.key"
+        other_certificates:
+          - "{{ rootca_cert_path | default('/opt/kafka-ca') }}/ca.crt"
+        passphrase: "{{ tls_keystore_password | default('changeit') }}"
+        friendly_name: "{{ inventory_hostname }}"
+        state: present
+        mode: "0600"
