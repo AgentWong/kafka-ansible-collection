@@ -1,0 +1,196 @@
+---
+# Converge playbook for demo scenario
+# Populates Kafka cluster with demo data for presentations
+
+- name: Populate Kafka cluster with demo data
+  hosts: kafka[0]
+  gather_facts: false
+  vars:
+    kafka_bin_dir: "{{ kafka_install_dir | default('/opt/kafka') }}/bin"
+    bootstrap_server: "localhost:{{ kafka_plaintext_port | default(9092) }}"
+
+  tasks:
+    - name: Create demo topics with various configurations
+      ansible.builtin.command: >
+        {{ kafka_bin_dir }}/kafka-topics.sh
+        --create
+        --topic {{ item.name }}
+        --partitions {{ item.partitions }}
+        --replication-factor {{ item.replication }}
+        --bootstrap-server {{ bootstrap_server }}
+        {% if item.config is defined %}--config {{ item.config }}{% endif %}
+      loop:
+        - name: user-events
+          partitions: 6
+          replication: 3
+          config: "retention.ms=604800000"
+        - name: order-processing
+          partitions: 4
+          replication: 3
+          config: "retention.ms=86400000"
+        - name: analytics-data
+          partitions: 8
+          replication: 3
+        - name: notifications
+          partitions: 3
+          replication: 2
+        - name: system-logs
+          partitions: 12
+          replication: 3
+          config: "compression.type=gzip"
+      register: create_topics
+      changed_when: "'Created topic' in create_topics.stdout"
+      failed_when: create_topics.rc != 0 and 'already exists' not in create_topics.stderr
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Generate sample messages for user-events topic
+      ansible.builtin.shell: |
+        for i in {1..100}; do
+          echo "{\"event_id\": $i, \"user_id\": $((RANDOM % 1000)), \"event_type\": \"page_view\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"page\": \"/products/$((RANDOM % 50))\"}"
+        done | {{ kafka_bin_dir }}/kafka-console-producer.sh \
+          --bootstrap-server {{ bootstrap_server }} \
+          --topic user-events
+      changed_when: true
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Generate sample messages for order-processing topic
+      ansible.builtin.shell: |
+        for i in {1..50}; do
+          echo "{\"order_id\": $i, \"customer_id\": $((RANDOM % 500)), \"amount\": $((RANDOM % 1000 + 10)), \"status\": \"pending\", \"created_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+        done | {{ kafka_bin_dir }}/kafka-console-producer.sh \
+          --bootstrap-server {{ bootstrap_server }} \
+          --topic order-processing
+      changed_when: true
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Generate sample messages for analytics-data topic
+      ansible.builtin.shell: |
+        for i in {1..200}; do
+          echo "{\"metric_id\": $i, \"metric_name\": \"cpu_usage\", \"value\": $((RANDOM % 100)), \"host\": \"server-$((RANDOM % 10))\", \"timestamp\": $(date +%s)}"
+        done | {{ kafka_bin_dir }}/kafka-console-producer.sh \
+          --bootstrap-server {{ bootstrap_server }} \
+          --topic analytics-data
+      changed_when: true
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Generate sample messages for notifications topic
+      ansible.builtin.shell: |
+        for i in {1..75}; do
+          echo "{\"notification_id\": $i, \"type\": \"email\", \"recipient\": \"user$((RANDOM % 100))@example.com\", \"subject\": \"Alert $i\", \"sent_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+        done | {{ kafka_bin_dir }}/kafka-console-producer.sh \
+          --bootstrap-server {{ bootstrap_server }} \
+          --topic notifications
+      changed_when: true
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Generate sample messages for system-logs topic
+      ansible.builtin.shell: |
+        for i in {1..150}; do
+          log_level=("INFO" "WARN" "ERROR" "DEBUG")
+          echo "{\"log_id\": $i, \"level\": \"${log_level[$((RANDOM % 4))]}\", \"message\": \"Log entry $i\", \"service\": \"api-server\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+        done | {{ kafka_bin_dir }}/kafka-console-producer.sh \
+          --bootstrap-server {{ bootstrap_server }} \
+          --topic system-logs
+      changed_when: true
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Display created topics summary
+      ansible.builtin.debug:
+        msg: |
+          ╔═══════════════════════════════════════════════════════════════╗
+          ║              DEMO TOPICS CREATED SUCCESSFULLY                 ║
+          ╠═══════════════════════════════════════════════════════════════╣
+          ║  Topics: 5                                                    ║
+          ║  Total Partitions: 33                                         ║
+          ║  Total Messages: ~575                                         ║
+          ╚═══════════════════════════════════════════════════════════════╝
+
+- name: Start consumer groups for demo
+  hosts: kafka
+  gather_facts: false
+  vars:
+    kafka_bin_dir: "{{ kafka_install_dir | default('/opt/kafka') }}/bin"
+    bootstrap_server: "kafka1:{{ kafka_plaintext_port | default(9092) }}"
+
+  tasks:
+    - name: Create directory for consumer scripts
+      ansible.builtin.file:
+        path: /opt/kafka-demo
+        state: directory
+        mode: '0755'
+
+    - name: Create consumer group script for user-events
+      ansible.builtin.copy:
+        dest: /opt/kafka-demo/consume-user-events.sh
+        mode: '0755'
+        content: |
+          #!/bin/bash
+          {{ kafka_bin_dir }}/kafka-console-consumer.sh \
+            --bootstrap-server {{ bootstrap_server }} \
+            --topic user-events \
+            --group user-events-analytics \
+            --from-beginning \
+            > /dev/null 2>&1 &
+          echo $! > /opt/kafka-demo/consumer-user-events.pid
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Create consumer group script for order-processing
+      ansible.builtin.copy:
+        dest: /opt/kafka-demo/consume-orders.sh
+        mode: '0755'
+        content: |
+          #!/bin/bash
+          {{ kafka_bin_dir }}/kafka-console-consumer.sh \
+            --bootstrap-server {{ bootstrap_server }} \
+            --topic order-processing \
+            --group order-fulfillment \
+            --from-beginning \
+            > /dev/null 2>&1 &
+          echo $! > /opt/kafka-demo/consumer-orders.pid
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Create consumer group script for analytics-data
+      ansible.builtin.copy:
+        dest: /opt/kafka-demo/consume-analytics.sh
+        mode: '0755'
+        content: |
+          #!/bin/bash
+          {{ kafka_bin_dir }}/kafka-console-consumer.sh \
+            --bootstrap-server {{ bootstrap_server }} \
+            --topic analytics-data \
+            --group analytics-processors \
+            --from-beginning \
+            > /dev/null 2>&1 &
+          echo $! > /opt/kafka-demo/consumer-analytics.pid
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Start consumer groups
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - /opt/kafka-demo/consume-user-events.sh
+        - /opt/kafka-demo/consume-orders.sh
+        - /opt/kafka-demo/consume-analytics.sh
+      changed_when: true
+      when:
+        - not (kafka_tls_enabled | default(false))
+        - inventory_hostname in groups['kafka'][:2]
+
+    - name: Wait for consumers to initialize
+      ansible.builtin.pause:
+        seconds: 5
+      when:
+        - not (kafka_tls_enabled | default(false))
+        - inventory_hostname == groups['kafka'][0]
+
+    - name: Display consumer groups summary
+      ansible.builtin.debug:
+        msg: |
+          ╔═══════════════════════════════════════════════════════════════╗
+          ║           CONSUMER GROUPS STARTED SUCCESSFULLY                ║
+          ╠═══════════════════════════════════════════════════════════════╣
+          ║  Active Consumer Groups: 3                                    ║
+          ║  - user-events-analytics                                      ║
+          ║  - order-fulfillment                                          ║
+          ║  - analytics-processors                                       ║
+          ╚═══════════════════════════════════════════════════════════════╝
+      when: inventory_hostname == groups['kafka'][0]

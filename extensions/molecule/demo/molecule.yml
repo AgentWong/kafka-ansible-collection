@@ -1,0 +1,4 @@
+---
+# Molecule scenario for populating demo data
+# This scenario inherits the infrastructure from the default scenario
+# Run with: molecule converge -s demo

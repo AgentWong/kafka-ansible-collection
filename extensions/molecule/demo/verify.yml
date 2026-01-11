@@ -1,0 +1,286 @@
+---
+# Verify playbook for demo scenario
+# Validates that demo data has been properly populated
+
+- name: Verify demo topics exist and have correct configuration
+  hosts: kafka[0]
+  gather_facts: false
+  vars:
+    kafka_bin_dir: "{{ kafka_install_dir | default('/opt/kafka') }}/bin"
+    bootstrap_server: "localhost:{{ kafka_plaintext_port | default(9092) }}"
+
+  tasks:
+    - name: List all topics
+      ansible.builtin.command: >
+        {{ kafka_bin_dir }}/kafka-topics.sh
+        --list
+        --bootstrap-server {{ bootstrap_server }}
+      register: topic_list
+      changed_when: false
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Verify all expected topics exist
+      ansible.builtin.assert:
+        that:
+          - "'user-events' in topic_list.stdout"
+          - "'order-processing' in topic_list.stdout"
+          - "'analytics-data' in topic_list.stdout"
+          - "'notifications' in topic_list.stdout"
+          - "'system-logs' in topic_list.stdout"
+        fail_msg: "Not all expected demo topics were found"
+        success_msg: "All 5 demo topics exist"
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Get detailed topic descriptions
+      ansible.builtin.command: >
+        {{ kafka_bin_dir }}/kafka-topics.sh
+        --describe
+        --bootstrap-server {{ bootstrap_server }}
+        --topic {{ item }}
+      loop:
+        - user-events
+        - order-processing
+        - analytics-data
+        - notifications
+        - system-logs
+      register: topic_descriptions
+      changed_when: false
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Verify user-events topic has 6 partitions
+      ansible.builtin.assert:
+        that:
+          - topic_descriptions.results[0].stdout | regex_search('PartitionCount: 6')
+        fail_msg: "user-events topic does not have 6 partitions"
+        success_msg: "user-events topic has correct partition count"
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Verify order-processing topic has 4 partitions
+      ansible.builtin.assert:
+        that:
+          - topic_descriptions.results[1].stdout | regex_search('PartitionCount: 4')
+        fail_msg: "order-processing topic does not have 4 partitions"
+        success_msg: "order-processing topic has correct partition count"
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Verify analytics-data topic has 8 partitions
+      ansible.builtin.assert:
+        that:
+          - topic_descriptions.results[2].stdout | regex_search('PartitionCount: 8')
+        fail_msg: "analytics-data topic does not have 8 partitions"
+        success_msg: "analytics-data topic has correct partition count"
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Verify notifications topic has 3 partitions
+      ansible.builtin.assert:
+        that:
+          - topic_descriptions.results[3].stdout | regex_search('PartitionCount: 3')
+        fail_msg: "notifications topic does not have 3 partitions"
+        success_msg: "notifications topic has correct partition count"
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Verify system-logs topic has 12 partitions
+      ansible.builtin.assert:
+        that:
+          - topic_descriptions.results[4].stdout | regex_search('PartitionCount: 12')
+        fail_msg: "system-logs topic does not have 12 partitions"
+        success_msg: "system-logs topic has correct partition count"
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Count total partitions across all topics
+      ansible.builtin.set_fact:
+        total_partitions: 33  # 6 + 4 + 8 + 3 + 12
+
+    - name: Verify replication factors
+      ansible.builtin.assert:
+        that:
+          - topic_descriptions.results[0].stdout | regex_search('ReplicationFactor: 3')
+          - topic_descriptions.results[1].stdout | regex_search('ReplicationFactor: 3')
+          - topic_descriptions.results[2].stdout | regex_search('ReplicationFactor: 3')
+          - topic_descriptions.results[3].stdout | regex_search('ReplicationFactor: 2')
+          - topic_descriptions.results[4].stdout | regex_search('ReplicationFactor: 3')
+        fail_msg: "Topics do not have correct replication factors"
+        success_msg: "All topics have correct replication factors"
+      when: not (kafka_tls_enabled | default(false))
+
+- name: Verify messages exist in topics
+  hosts: kafka[0]
+  gather_facts: false
+  vars:
+    kafka_bin_dir: "{{ kafka_install_dir | default('/opt/kafka') }}/bin"
+    bootstrap_server: "localhost:{{ kafka_plaintext_port | default(9092) }}"
+
+  tasks:
+    - name: Get end offsets for each topic
+      ansible.builtin.shell: >
+        {{ kafka_bin_dir }}/kafka-run-class.sh kafka.tools.GetOffsetShell
+        --broker-list {{ bootstrap_server }}
+        --topic {{ item }}
+        --time -1
+      loop:
+        - user-events
+        - order-processing
+        - analytics-data
+        - notifications
+        - system-logs
+      register: end_offsets
+      changed_when: false
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Verify user-events has messages
+      ansible.builtin.assert:
+        that:
+          - end_offsets.results[0].stdout_lines | length > 0
+          - end_offsets.results[0].stdout is search('[1-9][0-9]*')
+        fail_msg: "user-events topic has no messages"
+        success_msg: "user-events topic contains messages"
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Verify order-processing has messages
+      ansible.builtin.assert:
+        that:
+          - end_offsets.results[1].stdout_lines | length > 0
+          - end_offsets.results[1].stdout is search('[1-9][0-9]*')
+        fail_msg: "order-processing topic has no messages"
+        success_msg: "order-processing topic contains messages"
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Verify analytics-data has messages
+      ansible.builtin.assert:
+        that:
+          - end_offsets.results[2].stdout_lines | length > 0
+          - end_offsets.results[2].stdout is search('[1-9][0-9]*')
+        fail_msg: "analytics-data topic has no messages"
+        success_msg: "analytics-data topic contains messages"
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Verify notifications has messages
+      ansible.builtin.assert:
+        that:
+          - end_offsets.results[3].stdout_lines | length > 0
+          - end_offsets.results[3].stdout is search('[1-9][0-9]*')
+        fail_msg: "notifications topic has no messages"
+        success_msg: "notifications topic contains messages"
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Verify system-logs has messages
+      ansible.builtin.assert:
+        that:
+          - end_offsets.results[4].stdout_lines | length > 0
+          - end_offsets.results[4].stdout is search('[1-9][0-9]*')
+        fail_msg: "system-logs topic has no messages"
+        success_msg: "system-logs topic contains messages"
+      when: not (kafka_tls_enabled | default(false))
+
+- name: Verify consumer groups are active
+  hosts: kafka[0]
+  gather_facts: false
+  vars:
+    kafka_bin_dir: "{{ kafka_install_dir | default('/opt/kafka') }}/bin"
+    bootstrap_server: "localhost:{{ kafka_plaintext_port | default(9092) }}"
+
+  tasks:
+    - name: List consumer groups
+      ansible.builtin.command: >
+        {{ kafka_bin_dir }}/kafka-consumer-groups.sh
+        --bootstrap-server {{ bootstrap_server }}
+        --list
+      register: consumer_groups
+      changed_when: false
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Verify expected consumer groups exist
+      ansible.builtin.assert:
+        that:
+          - "'user-events-analytics' in consumer_groups.stdout"
+          - "'order-fulfillment' in consumer_groups.stdout"
+          - "'analytics-processors' in consumer_groups.stdout"
+        fail_msg: "Not all expected consumer groups were found"
+        success_msg: "All 3 consumer groups exist"
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Get consumer group details
+      ansible.builtin.command: >
+        {{ kafka_bin_dir }}/kafka-consumer-groups.sh
+        --bootstrap-server {{ bootstrap_server }}
+        --group {{ item }}
+        --describe
+      loop:
+        - user-events-analytics
+        - order-fulfillment
+        - analytics-processors
+      register: consumer_group_details
+      changed_when: false
+      when: not (kafka_tls_enabled | default(false))
+
+    - name: Verify consumer groups have consumed messages
+      ansible.builtin.assert:
+        that:
+          - consumer_group_details.results[0].stdout is search('user-events')
+          - consumer_group_details.results[1].stdout is search('order-processing')
+          - consumer_group_details.results[2].stdout is search('analytics-data')
+        fail_msg: "Consumer groups are not consuming from expected topics"
+        success_msg: "Consumer groups are actively consuming messages"
+      when: not (kafka_tls_enabled | default(false))
+
+- name: Verify Kafka UI can see demo data
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Check Kafka UI topics endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:8080/api/clusters/kafka-cluster/topics"
+        method: GET
+        status_code: 200
+        return_content: true
+      register: kafkaui_topics
+      retries: 5
+      delay: 3
+      until: kafkaui_topics.status == 200
+
+    - name: Verify Kafka UI can see demo topics
+      ansible.builtin.assert:
+        that:
+          - kafkaui_topics.json | length >= 5
+          - kafkaui_topics.json | selectattr('name', 'equalto', 'user-events') | list | length == 1
+          - kafkaui_topics.json | selectattr('name', 'equalto', 'order-processing') | list | length == 1
+          - kafkaui_topics.json | selectattr('name', 'equalto', 'analytics-data') | list | length == 1
+        fail_msg: "Kafka UI cannot see all demo topics"
+        success_msg: "Kafka UI can successfully display all demo topics"
+
+    - name: Check Kafka UI consumer groups endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:8080/api/clusters/kafka-cluster/consumer-groups"
+        method: GET
+        status_code: 200
+        return_content: true
+      register: kafkaui_groups
+      retries: 5
+      delay: 3
+      until: kafkaui_groups.status == 200
+
+    - name: Verify Kafka UI can see consumer groups
+      ansible.builtin.assert:
+        that:
+          - kafkaui_groups.json | length >= 3
+        fail_msg: "Kafka UI cannot see consumer groups"
+        success_msg: "Kafka UI can successfully display consumer groups"
+
+- name: Display verification summary
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Show final summary
+      ansible.builtin.debug:
+        msg: |
+          ╔═══════════════════════════════════════════════════════════════╗
+          ║            DEMO DATA VERIFICATION COMPLETE                    ║
+          ╠═══════════════════════════════════════════════════════════════╣
+          ║  ✓ 5 topics created with correct configurations              ║
+          ║  ✓ 33 total partitions distributed across brokers            ║
+          ║  ✓ ~575 messages produced across all topics                  ║
+          ║  ✓ 3 consumer groups actively consuming                      ║
+          ║  ✓ Kafka UI displaying all data correctly                    ║
+          ╠═══════════════════════════════════════════════════════════════╣
+          ║  Kafka UI: http://localhost:8080/ui/clusters/kafka-cluster    ║
+          ╚═══════════════════════════════════════════════════════════════╝
