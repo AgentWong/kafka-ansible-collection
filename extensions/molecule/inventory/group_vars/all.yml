@@ -52,7 +52,7 @@ kafka_tls_enabled: true
 kafka_listeners: "PLAINTEXT://:9092,SSL://:9093"
 kafka_advertised_listeners: "PLAINTEXT://{{ inventory_hostname }}:9092,SSL://{{ inventory_hostname }}:9093"
 kafka_inter_broker_listener_name: "SSL"
-kafka_zookeeper_connect: "zk1:2181,zk2:2181,zk3:2181"
+kafka_zookeeper_connect: "zk1:2182,zk2:2182,zk3:2182"
 
 # Common configuration
 common_packages:
