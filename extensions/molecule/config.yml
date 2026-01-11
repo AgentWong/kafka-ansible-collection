@@ -150,7 +150,7 @@ provisioner:
         zookeeper_cluster_nodes: "{{ groups['zookeeper'] }}"
       kafka:
         kafka_broker_id: "{{ groups['kafka'].index(inventory_hostname) + 1 }}"
-        kafka_zookeeper_connect: "{% for host in groups['zookeeper'] %}{{ host }}:2181{% if not loop.last %},{% endif %}{% endfor %}"
+        kafka_zookeeper_connect: "{% for host in groups['zookeeper'] %}{{ host }}:2182{% if not loop.last %},{% endif %}{% endfor %}"
 
 verifier:
   name: ansible
