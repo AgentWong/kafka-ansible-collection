@@ -14,30 +14,75 @@ An Ansible collection for deploying production-grade Apache Kafka clusters with 
 
 ## 📋 Architecture
 
-```
-┌────────────────────────────────────────────────────────────────────┐
-│                        Kafka Cluster                               │
-├────────────────────────────────────────────────────────────────────┤
-│                                                                    │
-│  ┌─────────────┐                                                   │
-│  │   Root CA   │  ← Self-signed CA for TLS certificate generation │
-│  │  (rootca1)  │                                                   │
-│  └──────┬──────┘                                                   │
-│         │                                                          │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                │
-│  │ ZooKeeper 1 │  │ ZooKeeper 2 │  │ ZooKeeper 3 │                │
-│  │   (zk1)     │  │   (zk2)     │  │   (zk3)     │                │
-│  └─────────────┘  └─────────────┘  └─────────────┘                │
-│         │                │                │                        │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                │
-│  │  Broker 1   │  │  Broker 2   │  │  Broker 3   │                │
-│  │  (kafka1)   │  │  (kafka2)   │  │  (kafka3)   │                │
-│  └─────────────┘  └─────────────┘  └─────────────┘                │
-│                                                                    │
-└────────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph "Kafka Cluster Infrastructure"
+        CA[Root CA<br/>rootca1<br/>Certificate Authority]
+
+        subgraph "ZooKeeper Ensemble"
+            ZK1[ZooKeeper 1<br/>zk1<br/>:2181, :2888, :3888]
+            ZK2[ZooKeeper 2<br/>zk2<br/>:2181, :2888, :3888]
+            ZK3[ZooKeeper 3<br/>zk3<br/>:2181, :2888, :3888]
+        end
+
+        subgraph "Kafka Brokers"
+            K1[Kafka Broker 1<br/>kafka1<br/>:9092 PLAINTEXT<br/>:9093 SSL]
+            K2[Kafka Broker 2<br/>kafka2<br/>:9092 PLAINTEXT<br/>:9093 SSL]
+            K3[Kafka Broker 3<br/>kafka3<br/>:9092 PLAINTEXT<br/>:9093 SSL]
+        end
+
+        UI[Kafka UI<br/>kafkaui1<br/>:8080<br/>Web Management Console]
+    end
+
+    CA -.->|Issues TLS Certificates| ZK1
+    CA -.->|Issues TLS Certificates| ZK2
+    CA -.->|Issues TLS Certificates| ZK3
+    CA -.->|Issues TLS Certificates| K1
+    CA -.->|Issues TLS Certificates| K2
+    CA -.->|Issues TLS Certificates| K3
+
+    ZK1 <-->|Quorum| ZK2
+    ZK2 <-->|Quorum| ZK3
+    ZK3 <-->|Quorum| ZK1
+
+    K1 -->|Coordination :2181| ZK1
+    K1 -->|Coordination :2181| ZK2
+    K1 -->|Coordination :2181| ZK3
+
+    K2 -->|Coordination :2181| ZK1
+    K2 -->|Coordination :2181| ZK2
+    K2 -->|Coordination :2181| ZK3
+
+    K3 -->|Coordination :2181| ZK1
+    K3 -->|Coordination :2181| ZK2
+    K3 -->|Coordination :2181| ZK3
+
+    K1 <-->|Replication| K2
+    K2 <-->|Replication| K3
+    K3 <-->|Replication| K1
+
+    UI -->|Monitors :9092| K1
+    UI -->|Monitors :9092| K2
+    UI -->|Monitors :9092| K3
+
+    style CA fill:#f9f,stroke:#333,stroke-width:2px
+    style UI fill:#bbf,stroke:#333,stroke-width:2px
+    style ZK1 fill:#bfb,stroke:#333,stroke-width:2px
+    style ZK2 fill:#bfb,stroke:#333,stroke-width:2px
+    style ZK3 fill:#bfb,stroke:#333,stroke-width:2px
+    style K1 fill:#fbb,stroke:#333,stroke-width:2px
+    style K2 fill:#fbb,stroke:#333,stroke-width:2px
+    style K3 fill:#fbb,stroke:#333,stroke-width:2px
 ```
 
-**Total Nodes:** 7 (1 CA + 3 ZooKeeper + 3 Kafka brokers)
+**Total Nodes:** 8 (1 CA + 3 ZooKeeper + 3 Kafka brokers + 1 Kafka UI)
+
+### Component Overview
+
+- **Root CA (rootca1)**: Generates self-signed certificates for TLS encryption
+- **ZooKeeper Ensemble (zk1-3)**: Distributed coordination service for Kafka cluster
+- **Kafka Brokers (kafka1-3)**: Message storage and streaming platform
+- **Kafka UI (kafkaui1)**: Web-based management and monitoring interface at [http://localhost:8080](http://localhost:8080)
 
 ## 🚀 Quick Start
 
