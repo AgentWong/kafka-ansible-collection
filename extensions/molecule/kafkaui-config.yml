@@ -1,0 +1,50 @@
+# Kafbat Kafka UI Configuration for Molecule Testing
+# This configuration connects to Kafka using PLAINTEXT for simplicity
+# SSL listener is also available on port 9093 with self-signed certificates
+
+kafka:
+  clusters:
+    - name: kafka-cluster
+      bootstrap-servers: kafka1:9092,kafka2:9092,kafka3:9092
+      
+      # Kafka client properties
+      properties:
+        security.protocol: PLAINTEXT
+      
+      # Read-only mode for safety
+      read-only: false
+      
+      # Polling configuration
+      polling-throttle-rate: 0
+
+  # Prefix for internal Kafka topics
+  internalTopicPrefix: "__"
+  
+  # Admin client timeout (in milliseconds)
+  admin-client-timeout: 30000
+  
+  # Polling behavior
+  polling:
+    poll-timeout-ms: 1000
+    max-page-size: 500
+    default-page-size: 100
+
+# Server configuration
+server:
+  port: 8080
+
+# Enable metrics and health endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  health:
+    ldap:
+      enabled: false
+
+# Logging
+logging:
+  level:
+    root: INFO
+    io.kafbat: INFO
