@@ -41,7 +41,6 @@
       register: create_topics
       changed_when: "'Created topic' in create_topics.stdout"
       failed_when: create_topics.rc != 0 and 'already exists' not in create_topics.stderr
-      when: not (kafka_tls_enabled | default(false))
 
     - name: Generate sample messages for user-events topic
       ansible.builtin.shell: |
@@ -51,7 +50,6 @@
           --bootstrap-server {{ bootstrap_server }} \
           --topic user-events
       changed_when: true
-      when: not (kafka_tls_enabled | default(false))
 
     - name: Generate sample messages for order-processing topic
       ansible.builtin.shell: |
@@ -61,7 +59,6 @@
           --bootstrap-server {{ bootstrap_server }} \
           --topic order-processing
       changed_when: true
-      when: not (kafka_tls_enabled | default(false))
 
     - name: Generate sample messages for analytics-data topic
       ansible.builtin.shell: |
@@ -71,7 +68,6 @@
           --bootstrap-server {{ bootstrap_server }} \
           --topic analytics-data
       changed_when: true
-      when: not (kafka_tls_enabled | default(false))
 
     - name: Generate sample messages for notifications topic
       ansible.builtin.shell: |
@@ -81,7 +77,6 @@
           --bootstrap-server {{ bootstrap_server }} \
           --topic notifications
       changed_when: true
-      when: not (kafka_tls_enabled | default(false))
 
     - name: Generate sample messages for system-logs topic
       ansible.builtin.shell: |
@@ -92,7 +87,6 @@
           --bootstrap-server {{ bootstrap_server }} \
           --topic system-logs
       changed_when: true
-      when: not (kafka_tls_enabled | default(false))
 
     - name: Display created topics summary
       ansible.builtin.debug:
@@ -132,7 +126,6 @@
             --from-beginning \
             > /dev/null 2>&1 &
           echo $! > /opt/kafka-demo/consumer-user-events.pid
-      when: not (kafka_tls_enabled | default(false))
 
     - name: Create consumer group script for order-processing
       ansible.builtin.copy:
@@ -147,7 +140,6 @@
             --from-beginning \
             > /dev/null 2>&1 &
           echo $! > /opt/kafka-demo/consumer-orders.pid
-      when: not (kafka_tls_enabled | default(false))
 
     - name: Create consumer group script for analytics-data
       ansible.builtin.copy:
@@ -162,7 +154,6 @@
             --from-beginning \
             > /dev/null 2>&1 &
           echo $! > /opt/kafka-demo/consumer-analytics.pid
-      when: not (kafka_tls_enabled | default(false))
 
     - name: Start consumer groups
       ansible.builtin.command: "{{ item }}"
@@ -171,16 +162,12 @@
         - /opt/kafka-demo/consume-orders.sh
         - /opt/kafka-demo/consume-analytics.sh
       changed_when: true
-      when:
-        - not (kafka_tls_enabled | default(false))
-        - inventory_hostname in groups['kafka'][:2]
+      when: inventory_hostname in groups['kafka'][:2]
 
     - name: Wait for consumers to initialize
       ansible.builtin.pause:
         seconds: 5
-      when:
-        - not (kafka_tls_enabled | default(false))
-        - inventory_hostname == groups['kafka'][0]
+      when: inventory_hostname == groups['kafka'][0]
 
     - name: Display consumer groups summary
       ansible.builtin.debug:

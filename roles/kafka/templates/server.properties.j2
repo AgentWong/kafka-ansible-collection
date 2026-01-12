@@ -83,6 +83,16 @@ zookeeper.connect={{ kafka_zookeeper_connect }}
 # Timeout in ms for connecting to ZooKeeper
 zookeeper.connection.timeout.ms={{ kafka_zookeeper_connection_timeout_ms }}
 
+{% if kafka_tls_enabled and zookeeper_tls_enabled | default(false) %}
+# ZooKeeper TLS Configuration
+zookeeper.ssl.client.enable=true
+zookeeper.clientCnxnSocket=org.apache.zookeeper.ClientCnxnSocketNetty
+zookeeper.ssl.keystore.location={{ kafka_keystore_path }}
+zookeeper.ssl.keystore.password={{ kafka_keystore_password }}
+zookeeper.ssl.truststore.location={{ kafka_truststore_path }}
+zookeeper.ssl.truststore.password={{ kafka_truststore_password }}
+{% endif %}
+
 ############################# Group Coordinator Settings #############################
 
 # The following configuration specifies the time, in milliseconds, that the GroupCoordinator will delay the initial consumer rebalance.

@@ -37,3 +37,19 @@
         trust_cacert: true
         state: present
       when: ca_cert_stat.stat.exists
+
+    - name: Set keystore file permissions for Kafka user
+      ansible.builtin.file:
+        path: "{{ kafka_keystore_path }}"
+        owner: "{{ kafka_user }}"
+        group: "{{ kafka_group }}"
+        mode: "0640"
+      when: ca_cert_stat.stat.exists
+
+    - name: Set truststore file permissions for Kafka user
+      ansible.builtin.file:
+        path: "{{ kafka_truststore_path }}"
+        owner: "{{ kafka_user }}"
+        group: "{{ kafka_group }}"
+        mode: "0640"
+      when: ca_cert_stat.stat.exists

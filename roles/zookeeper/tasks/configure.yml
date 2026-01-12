@@ -55,3 +55,19 @@
         trust_cacert: true
         state: present
       when: ca_cert_stat.stat.exists
+
+    - name: Set keystore file permissions for ZooKeeper user
+      ansible.builtin.file:
+        path: "{{ zookeeper_keystore_path }}"
+        owner: "{{ zookeeper_user }}"
+        group: "{{ zookeeper_group }}"
+        mode: "0640"
+      when: ca_cert_stat.stat.exists
+
+    - name: Set truststore file permissions for ZooKeeper user
+      ansible.builtin.file:
+        path: "{{ zookeeper_truststore_path }}"
+        owner: "{{ zookeeper_user }}"
+        group: "{{ zookeeper_group }}"
+        mode: "0640"
+      when: ca_cert_stat.stat.exists

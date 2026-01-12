@@ -26,7 +26,7 @@ This skill helps diagnose and fix issues with Kafka brokers, ZooKeeper ensemble,
 docker ps --format "table {{.Names}}\t{{.Status}}"
 
 # Execute commands in containers
-docker exec -it <container_name> <command>
+docker exec <container_name> <command>
 ```
 
 ## Log File Locations
@@ -35,35 +35,35 @@ docker exec -it <container_name> <command>
 
 ```bash
 # ZooKeeper logs (when installed via tarball)
-docker exec -it zk1 cat /opt/zookeeper/logs/zookeeper-root-server-zk1.out
-docker exec -it zk1 tail -50 /opt/zookeeper/logs/zookeeper-root-server-zk1.out
+docker exec zk1 cat /opt/zookeeper/logs/zookeeper-root-server-zk1.out
+docker exec zk1 tail -50 /opt/zookeeper/logs/zookeeper-root-server-zk1.out
 
 # ZooKeeper logs (systemd journal)
-docker exec -it zk1 journalctl -u zookeeper -n 50 --no-pager
+docker exec zk1 journalctl -u zookeeper -n 50 --no-pager
 
 # Check ZooKeeper status
-docker exec -it zk1 /opt/zookeeper/bin/zkServer.sh status
+docker exec zk1 /opt/zookeeper/bin/zkServer.sh status
 ```
 
 ### Kafka Broker Logs
 
 ```bash
 # Kafka server logs (when installed via tarball)
-docker exec -it kafka1 cat /opt/kafka/logs/server.log
-docker exec -it kafka1 tail -100 /opt/kafka/logs/server.log
+docker exec kafka1 cat /opt/kafka/logs/server.log
+docker exec kafka1 tail -100 /opt/kafka/logs/server.log
 
 # Kafka logs (systemd journal)
-docker exec -it kafka1 journalctl -u kafka -n 50 --no-pager
+docker exec kafka1 journalctl -u kafka -n 50 --no-pager
 
 # Check if Kafka is responding
-docker exec -it kafka1 /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092
+docker exec kafka1 /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092
 ```
 
 ### System Logs
 
 ```bash
 # General system journal
-docker exec -it kafka1 journalctl -xe --no-pager | tail -50
+docker exec kafka1 journalctl -xe --no-pager | tail -50
 ```
 
 ## Common Diagnostic Commands
@@ -72,53 +72,53 @@ docker exec -it kafka1 journalctl -xe --no-pager | tail -50
 
 ```bash
 # Check ZooKeeper mode (leader/follower)
-docker exec -it zk1 /opt/zookeeper/bin/zkServer.sh status
+docker exec zk1 /opt/zookeeper/bin/zkServer.sh status
 
 # Test ZooKeeper connectivity with 4-letter commands
-docker exec -it zk1 bash -c 'echo ruok | nc localhost 2181'
-docker exec -it zk1 bash -c 'echo stat | nc localhost 2181'
+docker exec zk1 bash -c 'echo ruok | nc localhost 2181'
+docker exec zk1 bash -c 'echo stat | nc localhost 2181'
 
 # List ZooKeeper znodes
-docker exec -it zk1 /opt/zookeeper/bin/zkCli.sh -server localhost:2181 ls /
+docker exec zk1 /opt/zookeeper/bin/zkCli.sh -server localhost:2181 ls /
 ```
 
 ### Kafka Health
 
 ```bash
 # List topics
-docker exec -it kafka1 /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+docker exec kafka1 /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
 
 # Describe cluster
-docker exec -it kafka1 /opt/kafka/bin/kafka-metadata.sh --snapshot /var/kafka-logs/__cluster_metadata-0/00000000000000000000.log --command "describe"
+docker exec kafka1 /opt/kafka/bin/kafka-metadata.sh --snapshot /var/kafka-logs/__cluster_metadata-0/00000000000000000000.log --command "describe"
 
 # Check broker API versions
-docker exec -it kafka1 /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092
+docker exec kafka1 /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092
 
 # Check consumer groups
-docker exec -it kafka1 /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list
+docker exec kafka1 /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list
 ```
 
 ### Network/Port Verification
 
 ```bash
 # Check listening ports
-docker exec -it kafka1 ss -tlnp
-docker exec -it zk1 ss -tlnp
+docker exec kafka1 ss -tlnp
+docker exec zk1 ss -tlnp
 
 # Test ZooKeeper port from Kafka broker
-docker exec -it kafka1 bash -c 'nc -zv zk1 2181'
+docker exec kafka1 bash -c 'nc -zv zk1 2181'
 ```
 
 ### Process Status
 
 ```bash
 # Check Java processes
-docker exec -it kafka1 jps -l
-docker exec -it zk1 jps -l
+docker exec kafka1 jps -l
+docker exec zk1 jps -l
 
 # Check systemd service status
-docker exec -it kafka1 systemctl status kafka
-docker exec -it zk1 systemctl status zookeeper
+docker exec kafka1 systemctl status kafka
+docker exec zk1 systemctl status zookeeper
 ```
 
 ## Common Issues and Solutions
@@ -130,10 +130,10 @@ docker exec -it zk1 systemctl status zookeeper
 **Check**:
 ```bash
 # Verify myid file
-docker exec -it zk1 cat /var/lib/zookeeper/myid
+docker exec zk1 cat /var/lib/zookeeper/myid
 
 # Check zoo.cfg has correct server entries
-docker exec -it zk1 cat /opt/zookeeper/conf/zoo.cfg
+docker exec zk1 cat /opt/zookeeper/conf/zoo.cfg
 ```
 
 ### Issue: Kafka Cannot Connect to ZooKeeper
@@ -143,10 +143,10 @@ docker exec -it zk1 cat /opt/zookeeper/conf/zoo.cfg
 **Check**:
 ```bash
 # Test connectivity from Kafka to each ZK node
-docker exec -it kafka1 bash -c 'for zk in zk1 zk2 zk3; do echo -n "$zk: "; nc -zv $zk 2181 2>&1; done'
+docker exec kafka1 bash -c 'for zk in zk1 zk2 zk3; do echo -n "$zk: "; nc -zv $zk 2181 2>&1; done'
 
 # Verify zookeeper.connect in server.properties
-docker exec -it kafka1 grep zookeeper.connect /opt/kafka/config/server.properties
+docker exec kafka1 grep zookeeper.connect /opt/kafka/config/server.properties
 ```
 
 ### Issue: TLS/SSL Certificate Errors
@@ -156,10 +156,10 @@ docker exec -it kafka1 grep zookeeper.connect /opt/kafka/config/server.propertie
 **Check**:
 ```bash
 # Verify keystore exists
-docker exec -it kafka1 ls -la /opt/kafka/config/*.jks
+docker exec kafka1 ls -la /opt/kafka/config/*.jks
 
 # Check certificate validity
-docker exec -it kafka1 keytool -list -v -keystore /opt/kafka/config/kafka.keystore.jks -storepass <password> | grep -A2 "Valid from"
+docker exec kafka1 keytool -list -v -keystore /opt/kafka/config/kafka.keystore.jks -storepass <password> | grep -A2 "Valid from"
 ```
 
 ## Filtering Ansible Output

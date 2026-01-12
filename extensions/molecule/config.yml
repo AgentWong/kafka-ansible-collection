@@ -2,10 +2,17 @@
 # Molecule configuration for full Kafka cluster testing
 # This scenario deploys: 1 Root CA + 3 ZooKeeper + 3 Kafka nodes
 
+ansible:
+  executor:
+    args:
+      ansible_playbook:
+        - --inventory=${MOLECULE_SCENARIO_DIRECTORY}/../inventory/
+
+shared_state: true
 dependency:
   name: galaxy
   options:
-    requirements-file: requirements.yml
+    requirements-file: ${MOLECULE_SCENARIO_DIRECTORY}/requirements.yml
 
 driver:
   name: docker
@@ -114,7 +121,7 @@ platforms:
 
   # Kafka UI container (no systemd needed)
   - name: kafkaui1
-    image: provectuslabs/kafka-ui:latest
+    image: ghcr.io/kafbat/kafka-ui:latest
     pre_build_image: true
     override_command: false
     networks:
@@ -122,9 +129,9 @@ platforms:
     published_ports:
       - 0.0.0.0:8080:8080/tcp
     env:
-      KAFKA_CLUSTERS_0_NAME: kafka-cluster
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka1:9092,kafka2:9092,kafka3:9092
-      KAFKA_CLUSTERS_0_ZOOKEEPER: zk1:2181,zk2:2181,zk3:2181
+      spring.config.additional-location=/tmp/config.yml
+    volumes:
+      - ${MOLECULE_SCENARIO_DIRECTORY}/../kafkaui-config.yml:/tmp/config.yml:ro
     groups:
       - kafkaui
 
@@ -136,7 +143,7 @@ provisioner:
     defaults:
       callbacks_enabled: profile_tasks
       gathering: smart
-      stdout_callback: yaml
+      result_format: yaml
     ssh_connection:
       pipelining: true
   inventory:
@@ -144,13 +151,10 @@ provisioner:
       all:
         ansible_user: root
         ansible_python_interpreter: /usr/bin/python3
-        kafka_tls_enabled: false
       zookeeper:
         zookeeper_myid: "{{ groups['zookeeper'].index(inventory_hostname) + 1 }}"
-        zookeeper_cluster_nodes: "{{ groups['zookeeper'] }}"
       kafka:
         kafka_broker_id: "{{ groups['kafka'].index(inventory_hostname) + 1 }}"
-        kafka_zookeeper_connect: "{% for host in groups['zookeeper'] %}{{ host }}:2181{% if not loop.last %},{% endif %}{% endfor %}"
 
 verifier:
   name: ansible
