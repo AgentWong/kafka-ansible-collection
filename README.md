@@ -3,9 +3,8 @@
 
 An Ansible collection for deploying production-grade Apache Kafka clusters with ZooKeeper coordination and TLS security. This project demonstrates AI-assisted development methodology with comprehensive Molecule testing.
 
-Youtube Video Demo:
-- https://www.youtube.com/watch?v=qMzQdLTZNAQ
-  - **1/12/26 Update:** I don't know why, but YouTube terminated my account for uploading an innocuous technical demo (roughly same setup and feel as a typical Jeff Geerling tutorial video). The video will be unavailable until I can find another hosting platform.
+Video Demo:
+- https://vimeo.com/1153847231
 
 ## 🎯 Features
 
