@@ -3,6 +3,9 @@
 
 An Ansible collection for deploying production-grade Apache Kafka clusters with ZooKeeper coordination and TLS security. This project demonstrates AI-assisted development methodology with comprehensive Molecule testing.
 
+LinkedIn Article Writeup:
+- https://www.linkedin.com/pulse/how-i-get-10x-more-value-from-github-copilot-using-one-herman-wong-3xotc/
+
 Video Demo:
 - https://vimeo.com/1153847231
 
