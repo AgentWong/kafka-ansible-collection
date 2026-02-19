@@ -7,7 +7,10 @@ LinkedIn Article Writeup:
 - https://www.linkedin.com/pulse/how-i-get-10x-more-value-from-github-copilot-using-one-herman-wong-3xotc/
 
 Video Demo:
+- https://www.youtube.com/watch?v=qMzQdLTZNAQ
+  - Full length, 37:06
 - https://vimeo.com/1153847231
+  - Trimmed, 1.25x speed, 22:14
 
 ## 🎯 Features
 
