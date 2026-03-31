@@ -2,7 +2,7 @@
 agent: agent
 description: Run complete Molecule test workflow with autonomous fix-and-retry loop until all tests pass
 tools:
-  ['execute', 'read', 'edit', 'search', 'web', 'agent', 'copilot-container-tools/*', 'todo']
+  [execute, read, agent, edit, search, web, ms-azuretools.vscode-containers/containerToolsConfig, todo]
 ---
 
 # Molecule Test Workflow (Autonomous)
@@ -23,7 +23,11 @@ Run the complete Molecule testing workflow with automatic error fixing. Continue
 │  4. If FAILED → diagnose, fix, goto 1                   │
 │  5. Run molecule verify                                 │
 │  6. If FAILED → diagnose, fix, goto 1                   │
-│  7. SUCCESS → Report completion, keep infra running     │
+│  7. Run molecule converge -s demo (populate demo data)  │
+│  8. If FAILED → diagnose, fix, goto 7                   │
+│  9. Run molecule verify -s demo                         │
+│ 10. If FAILED → diagnose, fix, goto 7                   │
+│ 11. SUCCESS → Report completion, keep infra running     │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -46,6 +50,24 @@ molecule idempotence 2>&1 | grep -E "(FAILED|fatal:|ERROR|PLAY RECAP|changed=)" 
 ```bash
 molecule verify 2>&1 | grep -E "(FAILED|fatal:|ERROR|PLAY RECAP|ok=|TASK)" -A 10
 ```
+
+## Phase 4: Demo Data
+
+After the default scenario passes, populate the Kafka cluster with demo data using the `demo` scenario:
+
+```bash
+molecule converge -s demo 2>&1 | grep -E "(FAILED|fatal:|ERROR|PLAY RECAP|ok=|TASK)" -A 10
+```
+
+Then verify the demo data was created correctly:
+
+```bash
+molecule verify -s demo 2>&1 | grep -E "(FAILED|fatal:|ERROR|PLAY RECAP|ok=|TASK)" -A 10
+```
+
+**Success criteria**: 5 demo topics created, ~575 messages produced, 3 consumer groups started, Kafka UI shows all topics at `http://localhost:8080/ui/clusters/kafka-cluster`
+
+If either command fails, diagnose and fix, then re-run from `molecule converge -s demo` (no need to re-run the default scenario unless the fix touches default scenario files).
 
 ## Autonomous Fix Loop
 
@@ -121,7 +143,10 @@ The workflow is complete when:
 - `molecule converge` shows `failed=0`
 - `molecule idempotence` shows `changed=0` for all hosts
 - `molecule verify` passes all assertions
+- `molecule converge -s demo` shows `failed=0` (5 topics, ~575 messages, 3 consumer groups)
+- `molecule verify -s demo` passes all assertions
 - Infrastructure remains running for manual verification
+- Kafka UI at `http://localhost:8080/ui/clusters/kafka-cluster` shows demo topics and consumer groups
 
 ## Final Report
 
