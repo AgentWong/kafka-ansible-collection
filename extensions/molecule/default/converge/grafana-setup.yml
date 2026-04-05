@@ -34,20 +34,20 @@
     - /etc/grafana/provisioning/datasources
 
 - name: Configure grafana.ini
-  ansible.builtin.blockinfile:
+  community.general.ini_file:
     path: /etc/grafana/grafana.ini
-    marker: "# {mark} ANSIBLE MANAGED BLOCK - server config"
-    block: |
-      [server]
-      root_url = https://nginx1/grafana/
-      serve_from_sub_path = true
-
-      [security]
-      admin_user = admin
-      admin_password = {{ grafana_admin_password | default('admin') }}
-
-      [auth.anonymous]
-      enabled = false
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0640"
+    owner: root
+    group: grafana
+  loop:
+    - { section: server, option: root_url, value: "https://nginx1/grafana/" }
+    - { section: server, option: serve_from_sub_path, value: "true" }
+    - { section: security, option: admin_user, value: "admin" }
+    - { section: security, option: admin_password, value: "{{ grafana_admin_password | default('admin') }}" }
+    - { section: "auth.anonymous", option: enabled, value: "false" }
 
 - name: Deploy Prometheus datasource provisioning
   ansible.builtin.copy:
@@ -55,6 +55,7 @@
       apiVersion: 1
       datasources:
         - name: Prometheus
+          uid: prometheus
           type: prometheus
           access: proxy
           url: http://localhost:9090
@@ -93,10 +94,18 @@
   with_fileglob:
     - "{{ playbook_dir }}/../files/dashboards/*.json"
 
+- name: Resolve datasource template variable in provisioned dashboards
+  ansible.builtin.replace:
+    path: "/var/lib/grafana/dashboards/{{ item | basename }}"
+    regexp: '\$\{DS_PROMETHEUS\}'
+    replace: 'prometheus'
+  with_fileglob:
+    - "{{ playbook_dir }}/../files/dashboards/*.json"
+
 - name: Enable and start Grafana
   ansible.builtin.systemd:
     name: grafana-server
-    state: started
+    state: restarted
     enabled: true
     daemon_reload: true
 

@@ -11,6 +11,20 @@ User={{ kafka_user }}
 Group={{ kafka_group }}
 Environment="JAVA_HOME={{ java_home | default('/usr/lib/jvm/jre') }}"
 Environment="LOG_DIR={{ kafka_log_dir }}"
+Environment="KAFKA_HEAP_OPTS={{ kafka_jvm_opts }}"
+{% set kafka_opts_parts = [] %}
+{% if kafka_jmx_exporter_enabled | default(false) %}
+{%   set _ = kafka_opts_parts.append('-javaagent:' ~ (jmx_exporter_install_dir | default('/opt/jmx-exporter')) ~ '/jmx_prometheus_javaagent.jar=' ~ (jmx_exporter_kafka_port | default(7071)) ~ ':' ~ (jmx_exporter_install_dir | default('/opt/jmx-exporter')) ~ '/kafka.yml') %}
+{% endif %}
+{% if kafka_tls_enabled | default(false) %}
+{%   set _ = kafka_opts_parts.append('-Djavax.net.ssl.keyStore=' ~ kafka_keystore_path) %}
+{%   set _ = kafka_opts_parts.append('-Djavax.net.ssl.keyStorePassword=' ~ kafka_keystore_password) %}
+{%   set _ = kafka_opts_parts.append('-Djavax.net.ssl.trustStore=' ~ kafka_truststore_path) %}
+{%   set _ = kafka_opts_parts.append('-Djavax.net.ssl.trustStorePassword=' ~ kafka_truststore_password) %}
+{% endif %}
+{% if kafka_opts_parts %}
+Environment="KAFKA_OPTS={{ kafka_opts_parts | join(' ') }}"
+{% endif %}
 EnvironmentFile=-{{ kafka_conf_dir }}/kafka-env.sh
 ExecStart={{ kafka_install_dir }}/bin/kafka-server-start.sh {{ kafka_config_file }}
 ExecStop={{ kafka_install_dir }}/bin/kafka-server-stop.sh

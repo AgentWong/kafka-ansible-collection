@@ -2,32 +2,61 @@
 # Import Grafana dashboards from Grafana Labs by ID
 # Requires Grafana to already be running (grafana-setup.yml ran first)
 
-- name: Import Kafka Exporter Overview dashboard (ID 7589)
-  community.grafana.grafana_dashboard:
-    grafana_url: "http://localhost:3000"
-    grafana_user: admin
-    grafana_password: "{{ grafana_admin_password | default('admin') }}"
-    dashboard_id: 7589
-    dashboard_revision: 7
-    state: present
-    overwrite: true
+- name: Fetch Kafka Exporter Overview dashboard JSON from Grafana Labs (ID 7589)
+  ansible.builtin.uri:
+    url: "https://grafana.com/api/dashboards/7589/revisions/5/download"
+    method: GET
+    return_content: true
+  register: grafana_7589_json
 
-- name: Import Node Exporter Full dashboard (ID 1860)
-  community.grafana.grafana_dashboard:
-    grafana_url: "http://localhost:3000"
-    grafana_user: admin
-    grafana_password: "{{ grafana_admin_password | default('admin') }}"
-    dashboard_id: 1860
-    dashboard_revision: 37
-    state: present
-    overwrite: true
+- name: Build datasource inputs for Kafka Exporter Overview dashboard
+  ansible.builtin.set_fact:
+    grafana_7589_inputs: >-
+      {{ (grafana_7589_json.json.__inputs | default([]))
+         | selectattr('type', 'equalto', 'datasource')
+         | map('combine', {'value': 'prometheus'})
+         | list }}
 
-- name: Import Kafka Overview JMX dashboard (ID 721)
-  community.grafana.grafana_dashboard:
-    grafana_url: "http://localhost:3000"
-    grafana_user: admin
-    grafana_password: "{{ grafana_admin_password | default('admin') }}"
-    dashboard_id: 721
-    dashboard_revision: 4
-    state: present
-    overwrite: true
+- name: Import Kafka Exporter Overview dashboard with datasource mapping
+  ansible.builtin.uri:
+    url: "http://localhost:3000/api/dashboards/import"
+    method: POST
+    user: admin
+    password: "{{ grafana_admin_password | default('admin') }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      dashboard: "{{ grafana_7589_json.json }}"
+      overwrite: true
+      inputs: "{{ grafana_7589_inputs }}"
+    status_code: [200]
+
+- name: Fetch Node Exporter Full dashboard JSON from Grafana Labs (ID 1860)
+  ansible.builtin.uri:
+    url: "https://grafana.com/api/dashboards/1860/revisions/43/download"
+    method: GET
+    return_content: true
+  register: grafana_1860_json
+
+- name: Build datasource inputs for Node Exporter Full dashboard
+  ansible.builtin.set_fact:
+    grafana_1860_inputs: >-
+      {{ (grafana_1860_json.json.__inputs | default([]))
+         | selectattr('type', 'equalto', 'datasource')
+         | map('combine', {'value': 'prometheus'})
+         | list }}
+
+- name: Import Node Exporter Full dashboard with datasource mapping
+  ansible.builtin.uri:
+    url: "http://localhost:3000/api/dashboards/import"
+    method: POST
+    user: admin
+    password: "{{ grafana_admin_password | default('admin') }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      dashboard: "{{ grafana_1860_json.json }}"
+      overwrite: true
+      inputs: "{{ grafana_1860_inputs }}"
+    status_code: [200]
+

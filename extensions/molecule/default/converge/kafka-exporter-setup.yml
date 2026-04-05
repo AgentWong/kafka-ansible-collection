@@ -38,6 +38,7 @@
     remote_src: true
     extra_opts:
       - --strip-components=1
+    creates: /opt/kafka_exporter/kafka_exporter
 
 - name: Set kafka_exporter binary permissions
   ansible.builtin.file:
@@ -70,7 +71,7 @@
       WantedBy=multi-user.target
     dest: /etc/systemd/system/kafka_exporter.service
     mode: "0644"
-  notify: Reload systemd and restart kafka_exporter
+  register: kafka_exporter_service_file
 
 - name: Reload systemd daemon
   ansible.builtin.systemd:
@@ -79,5 +80,5 @@
 - name: Enable and start kafka_exporter
   ansible.builtin.systemd:
     name: kafka_exporter
-    state: started
+    state: "{{ 'restarted' if kafka_exporter_service_file.changed else 'started' }}"
     enabled: true

@@ -146,7 +146,7 @@
     - ansible.builtin.include_tasks: verify/jmx-exporter-check.yml
       vars:
         jmx_port_var: "{{ jmx_exporter_kafka_port | default(7071) }}"
-  when: kafka_jmx_exporter_enabled | default(false)
+      when: kafka_jmx_exporter_enabled | default(false)
 
 - name: Verify Prometheus on monitoring node
   hosts: monitoring

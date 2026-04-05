@@ -53,8 +53,9 @@ http {
 
         # Grafana at /grafana/
         # Grafana is configured with serve_from_sub_path=true and root_url=https://nginx1/grafana/
+        # proxy_pass must NOT rewrite the path — Grafana handles /grafana/ internally via serve_from_sub_path
         location /grafana/ {
-            proxy_pass http://{{ nginx_grafana_upstream }}/;
+            proxy_pass http://{{ nginx_grafana_upstream }};
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

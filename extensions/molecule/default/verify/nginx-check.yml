@@ -9,7 +9,7 @@
 
 - name: Check Nginx HTTPS responds (Kafka UI at root)
   ansible.builtin.uri:
-    url: "https://nginx1/"
+    url: "https://localhost/"
     method: GET
     validate_certs: false
     url_username: "{{ nginx_basic_auth_user | default('admin') }}"
@@ -24,12 +24,12 @@
   ansible.builtin.assert:
     that:
       - nginx_kafkaui_response.status in [200, 302]
-    fail_msg: "Kafka UI not accessible through Nginx at https://nginx1/"
+    fail_msg: "Kafka UI not accessible through Nginx at https://localhost/"
     success_msg: "Kafka UI is accessible through Nginx reverse proxy"
 
 - name: Check Grafana accessible via Nginx sub-path
   ansible.builtin.uri:
-    url: "https://nginx1/grafana/api/health"
+    url: "https://localhost/grafana/api/health"
     method: GET
     validate_certs: false
     url_username: "{{ nginx_basic_auth_user | default('admin') }}"

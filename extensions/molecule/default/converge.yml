@@ -14,6 +14,12 @@
   roles:
     - role: hermanwong.kafka.java
 
+- name: Install JMX Exporter on ZooKeeper and Kafka nodes
+  hosts: zookeeper:kafka
+  gather_facts: true
+  roles:
+    - role: hermanwong.kafka.jmx_exporter
+
 - name: Deploy ZooKeeper cluster
   hosts: zookeeper
   gather_facts: true
@@ -33,12 +39,6 @@
         kafka_broker_id: "{{ groups['kafka'].index(inventory_hostname) + 1 }}"
   roles:
     - role: hermanwong.kafka.kafka
-
-- name: Install JMX Exporter on ZooKeeper and Kafka nodes
-  hosts: zookeeper:kafka
-  gather_facts: true
-  roles:
-    - role: hermanwong.kafka.jmx_exporter
 
 - name: Install Java on monitoring and traffic nodes
   hosts: monitoring:traffic
@@ -106,7 +106,7 @@
               severity: critical
             annotations:
               summary: "Kafka broker JMX endpoint is down"
-              description: "Kafka broker {{ $labels.instance }} has been unreachable for 1 minute"
+              description: "Kafka broker {% raw %}{{ $labels.instance }}{% endraw %} has been unreachable for 1 minute"
 
           - alert: UnderReplicatedPartitions
             expr: kafka_server_replicamanager_underreplicatedpartitions_value > 0
@@ -115,7 +115,7 @@
               severity: warning
             annotations:
               summary: "Under-replicated partitions detected"
-              description: "Kafka broker {{ $labels.instance }} has {{ $value }} under-replicated partitions"
+              description: "Kafka broker {% raw %}{{ $labels.instance }}{% endraw %} has {% raw %}{{ $value }}{% endraw %} under-replicated partitions"
 
           - alert: ZooKeeperDown
             expr: 'up{job="zookeeper-jmx"} == 0'
@@ -124,7 +124,7 @@
               severity: critical
             annotations:
               summary: "ZooKeeper JMX endpoint is down"
-              description: "ZooKeeper node {{ $labels.instance }} has been unreachable for 1 minute"
+              description: "ZooKeeper node {% raw %}{{ $labels.instance }}{% endraw %} has been unreachable for 1 minute"
 
           - alert: ConsumerGroupLag
             expr: kafka_consumergroup_lag_sum > 1000
@@ -133,7 +133,7 @@
               severity: warning
             annotations:
               summary: "High consumer group lag"
-              description: "Consumer group {{ $labels.consumergroup }} on topic {{ $labels.topic }} has lag of {{ $value }}"
+              description: "Consumer group {% raw %}{{ $labels.consumergroup }}{% endraw %} on topic {% raw %}{{ $labels.topic }}{% endraw %} has lag of {% raw %}{{ $value }}{% endraw %}"
 
 - name: Deploy kafka_exporter on monitoring node
   hosts: monitoring

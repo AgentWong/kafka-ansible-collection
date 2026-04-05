@@ -5,7 +5,7 @@
 - name: Query Kafka broker topic metrics from Prometheus
   ansible.builtin.uri:
     url: "http://localhost:9090/api/v1/query"
-    method: GET
+    method: POST
     body_format: form-urlencoded
     body:
       query: "kafka_server_brokertopicmetrics_messagesinpersec_count"
@@ -24,7 +24,7 @@
 - name: Query ZooKeeper metrics from Prometheus
   ansible.builtin.uri:
     url: "http://localhost:9090/api/v1/query"
-    method: GET
+    method: POST
     body_format: form-urlencoded
     body:
       query: "up{job='zookeeper-jmx'}"
@@ -43,7 +43,7 @@
 - name: Query kafka_exporter broker count from Prometheus
   ansible.builtin.uri:
     url: "http://localhost:9090/api/v1/query"
-    method: GET
+    method: POST
     body_format: form-urlencoded
     body:
       query: "kafka_brokers"
@@ -62,7 +62,7 @@
 - name: Query node_exporter metrics from Prometheus
   ansible.builtin.uri:
     url: "http://localhost:9090/api/v1/query"
-    method: GET
+    method: POST
     body_format: form-urlencoded
     body:
       query: "up{job='node'}"
