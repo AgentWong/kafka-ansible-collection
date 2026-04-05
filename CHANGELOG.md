@@ -8,26 +8,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Initial project structure for Kafka Ansible collection
-- Custom systemd-enabled Docker containers for Rocky Linux 9 and Ubuntu 22.04
-- Molecule testing framework with shared state configuration
-- `common` role for base system configuration
-- `java` role for OpenJDK installation
-- `rootca` role for TLS certificate generation
-- `zookeeper` role for Apache ZooKeeper cluster deployment
-- `kafka` role for Apache Kafka broker deployment
+
+#### Observability Stack (Prometheus + Grafana + Nginx + Python)
+
+- **`jmx_exporter` role** — Installs JMX Prometheus Java agent (v1.0.1 from Maven Central) on Kafka and ZooKeeper nodes; deploys Kafka and ZooKeeper MBean config YAML files with comprehensive metric patterns
+- **`nginx` role** — Installs and configures Nginx reverse proxy with TLS termination (Root CA-signed cert) and HTTP basic auth; routes `/` to Kafka UI and `/grafana/` to Grafana
+- **`monitoring1` container** — New Molecule node (Rocky Linux 9) running Prometheus, Grafana, kafka_exporter, and Node Exporter
+- **`nginx1` container** — New Molecule node (Rocky Linux 9) running Nginx reverse proxy (HTTPS :443)
+- **`traffic1` container** — New Molecule node (Rocky Linux 9) running the Python traffic generator
+- **JMX Exporter on Kafka brokers** — Exposes Prometheus metrics at `:7071/metrics`; enabled via `kafka_jmx_exporter_enabled: true`
+- **JMX Exporter on ZooKeeper nodes** — Exposes Prometheus metrics at `:7072/metrics`; enabled via `zookeeper_jmx_exporter_enabled: true`
+- **Prometheus** (via `prometheus.prometheus.prometheus` role) — Scrapes all cluster targets with 5 configured jobs: `kafka-jmx`, `zookeeper-jmx`, `kafka-exporter`, `node`, `prometheus`
+- **Node Exporter** (via `prometheus.prometheus.node_exporter` role) — Deployed on all Rocky Linux nodes; exposes system metrics at `:9100/metrics`
+- **kafka_exporter v1.9.0** (danielqsj) — Binary service on `monitoring1`; exposes consumer group lag and broker metrics at `:9308/metrics`
+- **Grafana** — Installed from official RPM repository; file-based dashboard and datasource provisioning; Prometheus datasource auto-configured
+- **Grafana dashboards** — Three custom file-provisioned JSON dashboards (Kafka Broker Overview, Kafka Consumer Lag, ZooKeeper Overview) plus three imported from Grafana Labs by ID (7589 Kafka Exporter Overview, 1860 Node Exporter Full, 721 Kafka Overview JMX)
+- **Prometheus alert rules** — Four alerts: `KafkaBrokerDown`, `UnderReplicatedPartitions`, `ZooKeeperDown`, `ConsumerGroupLag`
+- **Python traffic generator** (`extensions/molecule/files/traffic_generator.py`) — Multi-threaded producer and three consumer groups with deliberate variable delays to generate visible consumer lag; configurable via environment variables
+- **Modular converge task files** under `extensions/molecule/default/converge/`: `kafka-exporter-setup.yml`, `grafana-setup.yml`, `grafana-dashboards.yml`, `traffic-generator.yml`
+- **Modular verify task files** under `extensions/molecule/default/verify/`: `jmx-exporter-check.yml`, `prometheus-check.yml`, `grafana-check.yml`, `kafka-exporter-check.yml`, `nginx-check.yml`, `traffic-generator-check.yml`, `monitoring-integration.yml`, `summary-display.yml`
+- **`prometheus.prometheus >= 0.29.0`** and **`community.grafana >= 2.0.0`** added to `requirements.yml`
+- New variables in `group_vars/all.yml`: `jmx_exporter_version`, `jmx_exporter_kafka_port`, `jmx_exporter_zookeeper_port`, `kafka_jmx_exporter_enabled`, `zookeeper_jmx_exporter_enabled`, `grafana_admin_password`, `kafka_exporter_version`, `nginx_basic_auth_user`, `nginx_basic_auth_password`, `traffic_bootstrap_servers`, `traffic_produce_interval`, `traffic_consume_interval`
+- Copilot instructions, molecule prompt, and skills updated to cover all new components
+- New `observability-stack` Copilot skill with architecture reference, health check commands, and extension guide
+
+#### Documentation
+- `docs/ARCHITECTURE.md` — Expanded with full 11-node topology, metrics pipeline diagram, observability component details, alert rules table, traffic generator topics/consumer groups table, updated resource requirements
+- `README.md` — Updated features list, architecture diagram, node table, quick start access URLs table, observability stack section (metrics pipeline, dashboards, alerts, traffic generator), updated roles table and repository structure
 
 ### Changed
-- N/A
-
-### Deprecated
-- N/A
-
-### Removed
-- N/A
-
-### Fixed
-- N/A
+- `extensions/molecule/config.yml` — Added `monitoring1`, `nginx1`, and `traffic1` container platforms; cluster grows from 8 to 11 nodes
+- `extensions/molecule/default/converge.yml` — Added plays for JMX Exporter, Node Exporter, Prometheus, kafka_exporter, Grafana, Nginx, and traffic generator
+- `extensions/molecule/default/verify.yml` — Replaced single summary block with modular per-component verification plays
+- `extensions/molecule/default/prepare.yml` — Extended TLS certificate generation to include `nginx` group
+- `roles/kafka/templates/kafka-env.sh.j2` — Added conditional JMX Exporter javaagent flag
+- `roles/zookeeper/templates/java.env.j2` — Added conditional JMX Exporter javaagent flag
+- `roles/kafka/defaults/main.yml` — Added `kafka_jmx_exporter_enabled: false` default
+- `roles/zookeeper/defaults/main.yml` — Added `zookeeper_jmx_exporter_enabled: false` default
 
 ### Security
 - TLS encryption for all Kafka and ZooKeeper communications
+- Nginx TLS termination with Root CA-signed certificate
+- HTTP basic authentication on all Nginx-proxied endpoints

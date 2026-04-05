@@ -1,0 +1,79 @@
+---
+# Verify end-to-end monitoring integration:
+# Prometheus can query metrics from Kafka JMX, ZK JMX, kafka_exporter, and node_exporter
+
+- name: Query Kafka broker topic metrics from Prometheus
+  ansible.builtin.uri:
+    url: "http://localhost:9090/api/v1/query"
+    method: GET
+    body_format: form-urlencoded
+    body:
+      query: "kafka_server_brokertopicmetrics_messagesinpersec_count"
+    status_code: 200
+    return_content: true
+  register: kafka_jmx_query
+
+- name: Assert Kafka JMX metrics are in Prometheus
+  ansible.builtin.assert:
+    that:
+      - (kafka_jmx_query.content | from_json).status == 'success'
+      - (kafka_jmx_query.content | from_json).data.result | length > 0
+    fail_msg: "Kafka JMX metrics not found in Prometheus — check JMX Exporter on kafka nodes"
+    success_msg: "Kafka JMX metrics present in Prometheus ({{ (kafka_jmx_query.content | from_json).data.result | length }} series)"
+
+- name: Query ZooKeeper metrics from Prometheus
+  ansible.builtin.uri:
+    url: "http://localhost:9090/api/v1/query"
+    method: GET
+    body_format: form-urlencoded
+    body:
+      query: "up{job='zookeeper-jmx'}"
+    status_code: 200
+    return_content: true
+  register: zk_jmx_query
+
+- name: Assert ZooKeeper JMX metrics are in Prometheus
+  ansible.builtin.assert:
+    that:
+      - (zk_jmx_query.content | from_json).status == 'success'
+      - (zk_jmx_query.content | from_json).data.result | length > 0
+    fail_msg: "ZooKeeper JMX targets not UP in Prometheus"
+    success_msg: "ZooKeeper JMX targets UP in Prometheus ({{ (zk_jmx_query.content | from_json).data.result | length }} instances)"
+
+- name: Query kafka_exporter broker count from Prometheus
+  ansible.builtin.uri:
+    url: "http://localhost:9090/api/v1/query"
+    method: GET
+    body_format: form-urlencoded
+    body:
+      query: "kafka_brokers"
+    status_code: 200
+    return_content: true
+  register: kafka_exporter_query
+
+- name: Assert kafka_exporter metrics are in Prometheus
+  ansible.builtin.assert:
+    that:
+      - (kafka_exporter_query.content | from_json).status == 'success'
+      - (kafka_exporter_query.content | from_json).data.result | length > 0
+    fail_msg: "kafka_exporter metrics not in Prometheus — check kafka_exporter service on monitoring1"
+    success_msg: "kafka_exporter metrics present in Prometheus — kafka_brokers={{ (kafka_exporter_query.content | from_json).data.result[0].value[1] }}"
+
+- name: Query node_exporter metrics from Prometheus
+  ansible.builtin.uri:
+    url: "http://localhost:9090/api/v1/query"
+    method: GET
+    body_format: form-urlencoded
+    body:
+      query: "up{job='node'}"
+    status_code: 200
+    return_content: true
+  register: node_exporter_query
+
+- name: Assert node_exporter metrics are in Prometheus
+  ansible.builtin.assert:
+    that:
+      - (node_exporter_query.content | from_json).status == 'success'
+      - (node_exporter_query.content | from_json).data.result | length > 0
+    fail_msg: "node_exporter targets not found in Prometheus"
+    success_msg: "node_exporter targets UP in Prometheus ({{ (node_exporter_query.content | from_json).data.result | length }} nodes)"

@@ -1,0 +1,18 @@
+---
+# Verify JMX Exporter is exposing metrics on Kafka and ZooKeeper nodes
+
+- name: Check Kafka JMX Exporter metrics endpoint
+  ansible.builtin.uri:
+    url: "http://{{ inventory_hostname }}:{{ jmx_exporter_kafka_port | default(7071) }}/metrics"
+    method: GET
+    status_code: 200
+    return_content: true
+  register: kafka_jmx_response
+  delegate_to: localhost
+
+- name: Assert Kafka JMX metrics contain broker topic metrics
+  ansible.builtin.assert:
+    that:
+      - "'kafka_server_brokertopicmetrics' in kafka_jmx_response.content"
+    fail_msg: "Kafka JMX Exporter metrics missing expected broker topic metrics"
+    success_msg: "Kafka JMX Exporter responding with broker metrics on {{ inventory_hostname }}:{{ jmx_exporter_kafka_port | default(7071) }}"

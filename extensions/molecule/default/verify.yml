@@ -139,18 +139,53 @@
           Cluster Name: {{ kafkaui_response.json[0].name }}
           Cluster Status: {{ kafkaui_response.json[0].status | default('Unknown') }}
 
+- name: Verify JMX Exporter on Kafka nodes
+  hosts: kafka
+  gather_facts: false
+  tasks:
+    - ansible.builtin.include_tasks: verify/jmx-exporter-check.yml
+      vars:
+        jmx_port_var: "{{ jmx_exporter_kafka_port | default(7071) }}"
+  when: kafka_jmx_exporter_enabled | default(false)
+
+- name: Verify Prometheus on monitoring node
+  hosts: monitoring
+  gather_facts: false
+  tasks:
+    - ansible.builtin.include_tasks: verify/prometheus-check.yml
+
+- name: Verify Grafana on monitoring node
+  hosts: monitoring
+  gather_facts: false
+  tasks:
+    - ansible.builtin.include_tasks: verify/grafana-check.yml
+
+- name: Verify kafka_exporter on monitoring node
+  hosts: monitoring
+  gather_facts: false
+  tasks:
+    - ansible.builtin.include_tasks: verify/kafka-exporter-check.yml
+
+- name: Verify Nginx reverse proxy
+  hosts: nginx
+  gather_facts: false
+  tasks:
+    - ansible.builtin.include_tasks: verify/nginx-check.yml
+
+- name: Verify traffic generator on traffic node
+  hosts: traffic
+  gather_facts: false
+  tasks:
+    - ansible.builtin.include_tasks: verify/traffic-generator-check.yml
+
+- name: Verify end-to-end monitoring integration
+  hosts: monitoring
+  gather_facts: false
+  tasks:
+    - ansible.builtin.include_tasks: verify/monitoring-integration.yml
+
 - name: Summary
   hosts: localhost
   gather_facts: false
   tasks:
-    - name: Display verification summary
-      ansible.builtin.debug:
-        msg: |
-          ╔═══════════════════════════════════════════════════════════════╗
-          ║                    CLUSTER VERIFICATION COMPLETE              ║
-          ╠═══════════════════════════════════════════════════════════════╣
-          ║  ZooKeeper Nodes: {{ groups['zookeeper'] | length }}          ║
-          ║  Kafka Brokers:   {{ groups['kafka'] | length }}              ║
-          ║  Kafka UI:        {{ groups['kafkaui'] | length }}            ║
-          ║  TLS Enabled:     {{ kafka_tls_enabled | default(false) }}    ║
-          ╚═══════════════════════════════════════════════════════════════╝
+    - ansible.builtin.include_tasks: verify/summary-display.yml

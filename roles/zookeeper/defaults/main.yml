@@ -57,6 +57,9 @@ zookeeper_key_password: "changeit"
 # Four Letter Words (for monitoring)
 zookeeper_4lw_commands_whitelist: "stat, ruok, conf, isro, mntr, srvr"
 
+# JMX Exporter (Prometheus metrics agent)
+zookeeper_jmx_exporter_enabled: false
+
 # Service configuration
 zookeeper_service_name: zookeeper
 zookeeper_service_state: started

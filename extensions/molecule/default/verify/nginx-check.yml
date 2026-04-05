@@ -1,0 +1,48 @@
+---
+# Verify Nginx is running and reverse proxy routing works
+
+- name: Check nginx service is running
+  ansible.builtin.systemd:
+    name: nginx
+  register: nginx_service
+  failed_when: nginx_service.status.ActiveState != 'active'
+
+- name: Check Nginx HTTPS responds (Kafka UI at root)
+  ansible.builtin.uri:
+    url: "https://nginx1/"
+    method: GET
+    validate_certs: false
+    url_username: "{{ nginx_basic_auth_user | default('admin') }}"
+    url_password: "{{ nginx_basic_auth_password | default('admin') }}"
+    force_basic_auth: true
+    status_code: [200, 302]
+    follow_redirects: all
+  register: nginx_kafkaui_response
+  delegate_to: localhost
+
+- name: Assert Kafka UI is accessible via Nginx
+  ansible.builtin.assert:
+    that:
+      - nginx_kafkaui_response.status in [200, 302]
+    fail_msg: "Kafka UI not accessible through Nginx at https://nginx1/"
+    success_msg: "Kafka UI is accessible through Nginx reverse proxy"
+
+- name: Check Grafana accessible via Nginx sub-path
+  ansible.builtin.uri:
+    url: "https://nginx1/grafana/api/health"
+    method: GET
+    validate_certs: false
+    url_username: "{{ nginx_basic_auth_user | default('admin') }}"
+    url_password: "{{ nginx_basic_auth_password | default('admin') }}"
+    force_basic_auth: true
+    status_code: 200
+    return_content: true
+  register: nginx_grafana_response
+  delegate_to: localhost
+
+- name: Assert Grafana is accessible via Nginx
+  ansible.builtin.assert:
+    that:
+      - (nginx_grafana_response.content | from_json).database == 'ok'
+    fail_msg: "Grafana not accessible through Nginx at https://nginx1/grafana/"
+    success_msg: "Grafana is accessible through Nginx at /grafana/"

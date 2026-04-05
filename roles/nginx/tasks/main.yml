@@ -1,0 +1,39 @@
+---
+# Tasks for the nginx role — reverse proxy with TLS + basic auth
+
+- name: Install nginx and httpd-tools
+  ansible.builtin.dnf:
+    name:
+      - nginx
+      - httpd-tools
+    state: present
+
+- name: Create htpasswd file with basic auth credentials
+  ansible.builtin.command:
+    cmd: "htpasswd -bc {{ nginx_htpasswd_path }} {{ nginx_basic_auth_user }} {{ nginx_basic_auth_password }}"
+    creates: "{{ nginx_htpasswd_path }}"
+  no_log: true
+
+- name: Set htpasswd file permissions
+  ansible.builtin.file:
+    path: "{{ nginx_htpasswd_path }}"
+    owner: root
+    group: nginx
+    mode: "0640"
+
+- name: Deploy nginx main configuration
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "nginx -t -c %s"
+  notify: Restart nginx
+
+- name: Enable and start nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: started
+    enabled: true
+    daemon_reload: true

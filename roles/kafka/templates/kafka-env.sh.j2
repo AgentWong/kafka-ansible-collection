@@ -11,6 +11,11 @@ export KAFKA_JVM_PERFORMANCE_OPTS="-server -XX:+UseG1GC -XX:MaxGCPauseMillis=20 
 # Log directory
 export LOG_DIR="{{ kafka_log_dir }}"
 
+{% if kafka_jmx_exporter_enabled | default(false) %}
+# JMX Exporter — expose Prometheus metrics on port {{ jmx_exporter_kafka_port | default(7071) }}
+export KAFKA_OPTS="${KAFKA_OPTS} -javaagent:{{ jmx_exporter_install_dir | default('/opt/jmx-exporter') }}/jmx_prometheus_javaagent.jar={{ jmx_exporter_kafka_port | default(7071) }}:{{ jmx_exporter_install_dir | default('/opt/jmx-exporter') }}/kafka.yml"
+{% endif %}
+
 {% if kafka_tls_enabled %}
 # TLS/SSL settings
 export KAFKA_OPTS="${KAFKA_OPTS} -Djavax.net.ssl.keyStore={{ kafka_keystore_path }}"

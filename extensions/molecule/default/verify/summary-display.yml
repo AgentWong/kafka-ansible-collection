@@ -1,0 +1,35 @@
+---
+# Display final verification summary with all accessible endpoints
+
+- name: Display full observability stack summary
+  ansible.builtin.debug:
+    msg: |
+      ╔══════════════════════════════════════════════════════════════════════╗
+      ║           KAFKA OBSERVABILITY STACK — VERIFICATION COMPLETE          ║
+      ╠══════════════════════════════════════════════════════════════════════╣
+      ║  CLUSTER                                                             ║
+      ║    ZooKeeper Nodes:    {{ groups['zookeeper'] | length }} (zk1, zk2, zk3)                   ║
+      ║    Kafka Brokers:      {{ groups['kafka'] | length }} (kafka1, kafka2, kafka3)               ║
+      ║    TLS Enabled:        {{ kafka_tls_enabled | default(false) }}                             ║
+      ╠══════════════════════════════════════════════════════════════════════╣
+      ║  METRICS COLLECTION                                                  ║
+      ║    JMX Exporter (Kafka):     kafka1-3:7071/metrics                   ║
+      ║    JMX Exporter (ZK):        zk1-3:7072/metrics                      ║
+      ║    kafka_exporter:           monitoring1:9308/metrics                 ║
+      ║    node_exporter:            all nodes:9100/metrics                   ║
+      ╠══════════════════════════════════════════════════════════════════════╣
+      ║  OBSERVABILITY ENDPOINTS                                             ║
+      ║    Prometheus:        http://localhost:9090                           ║
+      ║    Grafana (direct):  http://localhost:3000                           ║
+      ╠══════════════════════════════════════════════════════════════════════╣
+      ║  REVERSE PROXY (nginx1)                                              ║
+      ║    Kafka UI:          https://nginx1/                                 ║
+      ║    Grafana:           https://nginx1/grafana/                         ║
+      ║    Auth:              admin / {{ nginx_basic_auth_password | default('admin') }}                             ║
+      ╠══════════════════════════════════════════════════════════════════════╣
+      ║  TRAFFIC GENERATOR                                                   ║
+      ║    Topics: user-events, order-processing, analytics-data,            ║
+      ║            notifications, system-logs                                 ║
+      ║    Consumer Groups: analytics-consumer, audit-consumer,              ║
+      ║                     reporting-consumer                               ║
+      ╚══════════════════════════════════════════════════════════════════════╝

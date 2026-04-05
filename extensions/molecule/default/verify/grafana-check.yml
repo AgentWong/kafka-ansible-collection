@@ -1,0 +1,41 @@
+---
+# Verify Grafana is running with datasource configured
+
+- name: Check Grafana service is running
+  ansible.builtin.systemd:
+    name: grafana-server
+  register: grafana_service
+  failed_when: grafana_service.status.ActiveState != 'active'
+
+- name: Check Grafana health endpoint
+  ansible.builtin.uri:
+    url: "http://localhost:3000/api/health"
+    method: GET
+    status_code: 200
+    return_content: true
+  register: grafana_health
+
+- name: Assert Grafana is healthy
+  ansible.builtin.assert:
+    that:
+      - (grafana_health.content | from_json).database == 'ok'
+    fail_msg: "Grafana database is not healthy"
+    success_msg: "Grafana is healthy"
+
+- name: Verify Prometheus datasource exists
+  ansible.builtin.uri:
+    url: "http://localhost:3000/api/datasources/name/Prometheus"
+    method: GET
+    status_code: 200
+    url_username: admin
+    url_password: "{{ grafana_admin_password | default('admin') }}"
+    force_basic_auth: true
+    return_content: true
+  register: grafana_datasource
+
+- name: Assert Prometheus datasource is configured
+  ansible.builtin.assert:
+    that:
+      - (grafana_datasource.content | from_json).type == 'prometheus'
+    fail_msg: "Prometheus datasource not found in Grafana"
+    success_msg: "Prometheus datasource is configured in Grafana"

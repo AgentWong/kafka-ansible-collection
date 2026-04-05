@@ -1,0 +1,33 @@
+---
+# Import Grafana dashboards from Grafana Labs by ID
+# Requires Grafana to already be running (grafana-setup.yml ran first)
+
+- name: Import Kafka Exporter Overview dashboard (ID 7589)
+  community.grafana.grafana_dashboard:
+    grafana_url: "http://localhost:3000"
+    grafana_user: admin
+    grafana_password: "{{ grafana_admin_password | default('admin') }}"
+    dashboard_id: 7589
+    dashboard_revision: 7
+    state: present
+    overwrite: true
+
+- name: Import Node Exporter Full dashboard (ID 1860)
+  community.grafana.grafana_dashboard:
+    grafana_url: "http://localhost:3000"
+    grafana_user: admin
+    grafana_password: "{{ grafana_admin_password | default('admin') }}"
+    dashboard_id: 1860
+    dashboard_revision: 37
+    state: present
+    overwrite: true
+
+- name: Import Kafka Overview JMX dashboard (ID 721)
+  community.grafana.grafana_dashboard:
+    grafana_url: "http://localhost:3000"
+    grafana_user: admin
+    grafana_password: "{{ grafana_admin_password | default('admin') }}"
+    dashboard_id: 721
+    dashboard_revision: 4
+    state: present
+    overwrite: true

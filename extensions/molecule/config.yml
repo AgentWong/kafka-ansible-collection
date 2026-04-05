@@ -119,6 +119,56 @@ platforms:
     groups:
       - kafka
 
+  # Monitoring node — Prometheus + Grafana + kafka_exporter + Node Exporter
+  - name: monitoring1
+    image: kafka-ansible/rocky9-systemd
+    dockerfile: ../../../containers/rocky/9/Dockerfile
+    pre_build_image: false
+    privileged: true
+    cgroupns_mode: host
+    networks:
+      - name: kafka-test-network
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    command: /usr/sbin/init
+    published_ports:
+      - 0.0.0.0:9090:9090/tcp
+      - 0.0.0.0:3000:3000/tcp
+    groups:
+      - monitoring
+
+  # Nginx reverse proxy — TLS + basic auth
+  - name: nginx1
+    image: kafka-ansible/rocky9-systemd
+    dockerfile: ../../../containers/rocky/9/Dockerfile
+    pre_build_image: false
+    privileged: true
+    cgroupns_mode: host
+    networks:
+      - name: kafka-test-network
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    command: /usr/sbin/init
+    published_ports:
+      - 0.0.0.0:443:443/tcp
+    groups:
+      - nginx
+
+  # Traffic generator — Python producer/consumer
+  - name: traffic1
+    image: kafka-ansible/rocky9-systemd
+    dockerfile: ../../../containers/rocky/9/Dockerfile
+    pre_build_image: false
+    privileged: true
+    cgroupns_mode: host
+    networks:
+      - name: kafka-test-network
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    command: /usr/sbin/init
+    groups:
+      - traffic
+
   # Kafka UI container (no systemd needed)
   - name: kafkaui1
     image: ghcr.io/kafbat/kafka-ui:latest

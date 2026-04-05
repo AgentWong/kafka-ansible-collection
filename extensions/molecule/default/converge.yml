@@ -33,3 +33,130 @@
         kafka_broker_id: "{{ groups['kafka'].index(inventory_hostname) + 1 }}"
   roles:
     - role: hermanwong.kafka.kafka
+
+- name: Install JMX Exporter on ZooKeeper and Kafka nodes
+  hosts: zookeeper:kafka
+  gather_facts: true
+  roles:
+    - role: hermanwong.kafka.jmx_exporter
+
+- name: Install Java on monitoring and traffic nodes
+  hosts: monitoring:traffic
+  gather_facts: true
+  roles:
+    - role: hermanwong.kafka.java
+
+- name: Deploy Node Exporter on all cluster nodes
+  hosts: zookeeper:kafka:monitoring:nginx:traffic
+  gather_facts: true
+  roles:
+    - role: prometheus.prometheus.node_exporter
+
+- name: Deploy Prometheus on monitoring node
+  hosts: monitoring
+  gather_facts: true
+  roles:
+    - role: prometheus.prometheus.prometheus
+      vars:
+        prometheus_scrape_configs:
+          - job_name: prometheus
+            static_configs:
+              - targets:
+                  - localhost:9090
+
+          - job_name: kafka-jmx
+            static_configs:
+              - targets:
+                  - kafka1:7071
+                  - kafka2:7071
+                  - kafka3:7071
+            metrics_path: /metrics
+
+          - job_name: zookeeper-jmx
+            static_configs:
+              - targets:
+                  - zk1:7072
+                  - zk2:7072
+                  - zk3:7072
+            metrics_path: /metrics
+
+          - job_name: kafka-exporter
+            static_configs:
+              - targets:
+                  - localhost:9308
+
+          - job_name: node
+            static_configs:
+              - targets:
+                  - zk1:9100
+                  - zk2:9100
+                  - zk3:9100
+                  - kafka1:9100
+                  - kafka2:9100
+                  - kafka3:9100
+                  - monitoring1:9100
+                  - nginx1:9100
+                  - traffic1:9100
+
+        prometheus_alert_rules:
+          - alert: KafkaBrokerDown
+            expr: 'up{job="kafka-jmx"} == 0'
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Kafka broker JMX endpoint is down"
+              description: "Kafka broker {{ $labels.instance }} has been unreachable for 1 minute"
+
+          - alert: UnderReplicatedPartitions
+            expr: kafka_server_replicamanager_underreplicatedpartitions_value > 0
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Under-replicated partitions detected"
+              description: "Kafka broker {{ $labels.instance }} has {{ $value }} under-replicated partitions"
+
+          - alert: ZooKeeperDown
+            expr: 'up{job="zookeeper-jmx"} == 0'
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "ZooKeeper JMX endpoint is down"
+              description: "ZooKeeper node {{ $labels.instance }} has been unreachable for 1 minute"
+
+          - alert: ConsumerGroupLag
+            expr: kafka_consumergroup_lag_sum > 1000
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High consumer group lag"
+              description: "Consumer group {{ $labels.consumergroup }} on topic {{ $labels.topic }} has lag of {{ $value }}"
+
+- name: Deploy kafka_exporter on monitoring node
+  hosts: monitoring
+  gather_facts: true
+  tasks:
+    - ansible.builtin.include_tasks: converge/kafka-exporter-setup.yml
+
+- name: Deploy Grafana on monitoring node
+  hosts: monitoring
+  gather_facts: true
+  tasks:
+    - ansible.builtin.include_tasks: converge/grafana-setup.yml
+    - ansible.builtin.include_tasks: converge/grafana-dashboards.yml
+
+- name: Deploy Nginx reverse proxy
+  hosts: nginx
+  gather_facts: true
+  roles:
+    - role: hermanwong.kafka.common
+    - role: hermanwong.kafka.nginx
+
+- name: Deploy traffic generator
+  hosts: traffic
+  gather_facts: true
+  tasks:
+    - ansible.builtin.include_tasks: converge/traffic-generator.yml

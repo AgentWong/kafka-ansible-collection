@@ -1,0 +1,44 @@
+---
+# Verify Prometheus is running and all scrape targets are UP
+
+- name: Check Prometheus service is running
+  ansible.builtin.systemd:
+    name: prometheus
+  register: prometheus_service
+  failed_when: prometheus_service.status.ActiveState != 'active'
+
+- name: Check Prometheus health endpoint
+  ansible.builtin.uri:
+    url: "http://localhost:9090/-/healthy"
+    method: GET
+    status_code: 200
+  register: prometheus_health
+
+- name: Query Prometheus targets via API
+  ansible.builtin.uri:
+    url: "http://localhost:9090/api/v1/targets"
+    method: GET
+    status_code: 200
+    return_content: true
+  register: prometheus_targets
+
+- name: Parse Prometheus targets
+  ansible.builtin.set_fact:
+    active_targets: "{{ (prometheus_targets.content | from_json).data.activeTargets }}"
+
+- name: Assert all Prometheus targets are UP
+  ansible.builtin.assert:
+    that:
+      - active_targets | selectattr('health', 'equalto', 'up') | list | length == active_targets | length
+    fail_msg: >
+      Some Prometheus targets are not UP:
+      {{ active_targets | selectattr('health', 'ne', 'up') | map(attribute='labels') | list }}
+    success_msg: "All {{ active_targets | length }} Prometheus targets are UP"
+
+- name: Display Prometheus target summary
+  ansible.builtin.debug:
+    msg: |
+      Prometheus Targets:
+      {% for t in active_targets %}
+      - {{ t.labels.job }}: {{ t.scrapeUrl }} [{{ t.health }}]
+      {% endfor %}

@@ -1,0 +1,55 @@
+---
+# JMX Exporter configuration for ZooKeeper
+# Based on confluentinc/jmx-monitoring-stacks zookeeper.yml
+# Managed by Ansible - do not edit manually
+
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+
+rules:
+  # ZooKeeper service metrics — latency, connections, znodes, watches
+  - pattern: "org.apache.ZooKeeperService<name0=ReplicatedServer_id(\\d+)><>(\\w+)"
+    name: zookeeper_$2
+    labels:
+      replicaid: "$1"
+
+  - pattern: "org.apache.ZooKeeperService<name0=ReplicatedServer_id(\\d+), name1=replica.(\\d+)><>(\\w+)"
+    name: zookeeper_$3
+    labels:
+      replicaid: "$1"
+      membertype: "$3"
+
+  - pattern: "org.apache.ZooKeeperService<name0=ReplicatedServer_id(\\d+), name1=replica.(\\d+), name2=(\\w+)><>(\\w+)"
+    name: zookeeper_$4
+    labels:
+      replicaid: "$1"
+      membertype: "$3"
+
+  # Standalone ZooKeeper (non-replicated)
+  - pattern: "org.apache.ZooKeeperService<name0=StandaloneServer_port(\\d+)><>(\\w+)"
+    name: zookeeper_$2
+    labels:
+      port: "$1"
+
+  - pattern: "org.apache.ZooKeeperService<name0=StandaloneServer_port(\\d+), name1=(\\w+)><>(\\w+)"
+    name: zookeeper_$3
+    labels:
+      port: "$1"
+      membertype: "$2"
+
+  # JVM memory
+  - pattern: java.lang<type=Memory><HeapMemoryUsage>(used|committed|max)
+    name: jvm_memory_heap_$1_bytes
+
+  - pattern: java.lang<type=Memory><NonHeapMemoryUsage>(used|committed|max)
+    name: jvm_memory_nonheap_$1_bytes
+
+  # JVM GC
+  - pattern: java.lang<type=GarbageCollector, name=(.+)><>(CollectionCount|CollectionTime)
+    name: jvm_gc_$2_total
+    labels:
+      gc: "$1"
+
+  # JVM threads
+  - pattern: java.lang<type=Threading><>(ThreadCount|DaemonThreadCount|PeakThreadCount)
+    name: jvm_threads_$1

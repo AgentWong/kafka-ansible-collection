@@ -1,0 +1,44 @@
+---
+# Tasks for jmx_exporter role — installs JMX Prometheus Java agent
+
+- name: Create JMX Exporter install directory
+  ansible.builtin.file:
+    path: "{{ jmx_exporter_install_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Download JMX Exporter JAR from Maven Central
+  ansible.builtin.get_url:
+    url: "{{ jmx_exporter_download_url }}"
+    dest: "{{ jmx_exporter_install_dir }}/{{ jmx_exporter_jar_name }}"
+    mode: "0644"
+  register: jmx_jar_download
+  retries: 3
+  delay: 5
+  until: jmx_jar_download is succeeded
+
+- name: Create symlink for JMX Exporter JAR
+  ansible.builtin.file:
+    src: "{{ jmx_exporter_install_dir }}/{{ jmx_exporter_jar_name }}"
+    dest: "{{ jmx_exporter_install_dir }}/jmx_prometheus_javaagent.jar"
+    state: link
+
+- name: Deploy Kafka JMX Exporter config
+  ansible.builtin.template:
+    src: kafka-jmx-config.yml.j2
+    dest: "{{ jmx_exporter_install_dir }}/kafka.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  when: kafka_jmx_exporter_enabled | default(false)
+
+- name: Deploy ZooKeeper JMX Exporter config
+  ansible.builtin.template:
+    src: zookeeper-jmx-config.yml.j2
+    dest: "{{ jmx_exporter_install_dir }}/zookeeper.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  when: zookeeper_jmx_exporter_enabled | default(false)
