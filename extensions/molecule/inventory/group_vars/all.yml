@@ -70,6 +70,7 @@ jmx_exporter_kafka_port: 7071
 jmx_exporter_zookeeper_port: 7072
 kafka_jmx_exporter_enabled: true
 zookeeper_jmx_exporter_enabled: true
+zookeeper_mntr_exporter_enabled: true
 
 # Monitoring
 grafana_admin_password: "admin"

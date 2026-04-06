@@ -1,0 +1,7 @@
+[Unit]
+Description=ZooKeeper mntr metrics exporter for node_exporter textfile collector
+After=zookeeper.service
+
+[Service]
+Type=oneshot
+ExecStart={{ zookeeper_mntr_exporter_script }}

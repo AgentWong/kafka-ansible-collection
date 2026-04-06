@@ -37,6 +37,55 @@
     mode: "0644"
   notify: restart zookeeper
 
+- name: Deploy ZooKeeper mntr metrics exporter script
+  ansible.builtin.template:
+    src: zookeeper-mntr-exporter.sh.j2
+    dest: "{{ zookeeper_mntr_exporter_script }}"
+    owner: root
+    group: root
+    mode: "0755"
+  when: zookeeper_mntr_exporter_enabled | default(false)
+
+- name: Create textfile directory for mntr metrics
+  ansible.builtin.file:
+    path: "{{ zookeeper_mntr_textfile_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: zookeeper_mntr_exporter_enabled | default(false)
+
+- name: Deploy mntr exporter systemd service unit
+  ansible.builtin.template:
+    src: zookeeper-mntr-exporter.service.j2
+    dest: /etc/systemd/system/zookeeper-mntr-exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  when: zookeeper_mntr_exporter_enabled | default(false)
+
+- name: Deploy mntr exporter systemd timer unit
+  ansible.builtin.template:
+    src: zookeeper-mntr-exporter.timer.j2
+    dest: /etc/systemd/system/zookeeper-mntr-exporter.timer
+    owner: root
+    group: root
+    mode: "0644"
+  when: zookeeper_mntr_exporter_enabled | default(false)
+
+- name: Enable and start mntr exporter timer
+  ansible.builtin.systemd:
+    name: zookeeper-mntr-exporter.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: zookeeper_mntr_exporter_enabled | default(false)
+
+- name: Run mntr exporter immediately to seed initial metrics
+  ansible.builtin.command: "{{ zookeeper_mntr_exporter_script }}"
+  changed_when: false
+  when: zookeeper_mntr_exporter_enabled | default(false)
+
 - name: Create TLS truststore
   when: zookeeper_tls_enabled | bool
   block:
