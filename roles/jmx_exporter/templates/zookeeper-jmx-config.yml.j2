@@ -7,23 +7,66 @@ lowercaseOutputName: true
 lowercaseOutputLabelNames: true
 
 rules:
-  # ZooKeeper service metrics — latency, connections, znodes, watches
+  # ZooKeeper service metrics — replicated cluster (ZooKeeper 3.6+)
+
+  # AvgRequestLatency lives on the replica bean but has a different JMX attribute name.
+  # Expose it as zookeeper_avglatency to match the dashboard query.
+  - pattern: "org.apache.ZooKeeperService<name0=ReplicatedServer_id(\\d+), name1=replica.(\\d+)><>AvgRequestLatency"
+    name: zookeeper_avglatency
+    labels:
+      replicaid: "$1"
+      replica: "$2"
+
+  # ZnodeCount lives under the InMemoryDataTree sub-bean.
+  # Expose it as zookeeper_znodecount to match the dashboard query.
+  - pattern: "org.apache.ZooKeeperService<name0=ReplicatedServer_id(\\d+), name1=replica.(\\d+), name2=InMemoryDataTree><>ZnodeCount"
+    name: zookeeper_znodecount
+    labels:
+      replicaid: "$1"
+      replica: "$2"
+
+  # WatchCount also lives on the InMemoryDataTree sub-bean.
+  - pattern: "org.apache.ZooKeeperService<name0=ReplicatedServer_id(\\d+), name1=replica.(\\d+), name2=InMemoryDataTree><>WatchCount"
+    name: zookeeper_watchcount
+    labels:
+      replicaid: "$1"
+      replica: "$2"
+
+  # NumPendingSyncs lives on the Leader sub-bean only.
+  # Expose it as zookeeper_pendingsyncs to match the dashboard query.
+  - pattern: "org.apache.ZooKeeperService<name0=ReplicatedServer_id(\\d+), name1=replica.(\\d+), name2=Leader><>NumPendingSyncs"
+    name: zookeeper_pendingsyncs
+    labels:
+      replicaid: "$1"
+      replica: "$2"
+
+  # Top-level replicated server attributes (e.g. OutstandingRequests)
   - pattern: "org.apache.ZooKeeperService<name0=ReplicatedServer_id(\\d+)><>(\\w+)"
     name: zookeeper_$2
     labels:
       replicaid: "$1"
 
+  # Replica-level catch-all (NumAliveConnections, MinLatency, MaxLatency, etc.)
   - pattern: "org.apache.ZooKeeperService<name0=ReplicatedServer_id(\\d+), name1=replica.(\\d+)><>(\\w+)"
     name: zookeeper_$3
     labels:
       replicaid: "$1"
-      membertype: "$3"
+      replica: "$2"
 
-  - pattern: "org.apache.ZooKeeperService<name0=ReplicatedServer_id(\\d+), name1=replica.(\\d+), name2=(\\w+)><>(\\w+)"
+  # Leader/Follower/Observer sub-bean catch-all
+  - pattern: "org.apache.ZooKeeperService<name0=ReplicatedServer_id(\\d+), name1=replica.(\\d+), name2=(Leader|Follower|Observer)><>(\\w+)"
     name: zookeeper_$4
     labels:
       replicaid: "$1"
-      membertype: "$3"
+      replica: "$2"
+      role: "$3"
+
+  # InMemoryDataTree sub-bean catch-all
+  - pattern: "org.apache.ZooKeeperService<name0=ReplicatedServer_id(\\d+), name1=replica.(\\d+), name2=InMemoryDataTree><>(\\w+)"
+    name: zookeeper_$4
+    labels:
+      replicaid: "$1"
+      replica: "$2"
 
   # Standalone ZooKeeper (non-replicated)
   - pattern: "org.apache.ZooKeeperService<name0=StandaloneServer_port(\\d+)><>(\\w+)"

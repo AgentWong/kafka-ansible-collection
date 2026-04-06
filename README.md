@@ -1,120 +1,51 @@
 # Kafka Ansible Collection
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-An Ansible collection for deploying production-grade Apache Kafka clusters with ZooKeeper coordination, TLS security, and a full Prometheus/Grafana observability stack. This project demonstrates AI-assisted development methodology with comprehensive Molecule testing.
+An Ansible collection for deploying a production-grade Apache Kafka cluster with ZooKeeper coordination, TLS security, and a full Prometheus/Grafana observability stack — all tested via Molecule with Docker.
 
-LinkedIn Article Writeup:
-- https://www.linkedin.com/pulse/how-i-get-10x-more-value-from-github-copilot-using-one-herman-wong-3xotc/
+## At a Glance
 
-Video Demo:
-- https://www.youtube.com/watch?v=qMzQdLTZNAQ
-  - Full length, 37:06
-- https://vimeo.com/1153847231
-  - Trimmed, 1.25x speed, 22:14
+| | |
+|---|---|
+| **Nodes** | 11 containers (Root CA, 3 ZooKeeper, 3 Kafka, Monitoring, Nginx, Traffic Generator, Kafka UI) |
+| **Security** | Self-signed Root CA → TLS everywhere (inter-broker, ZooKeeper quorum, Nginx) |
+| **Observability** | Prometheus + Grafana + JMX Exporter + kafka_exporter + Node Exporter |
+| **Access** | Nginx reverse proxy with HTTPS and basic auth fronting Kafka UI and Grafana |
+| **Testing** | Molecule with systemd-enabled Rocky Linux 9 containers |
 
-## 🎯 Features
+> For the full architecture diagram and component details, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-- **Production-grade Kafka deployment** with 3-node broker cluster
-- **ZooKeeper ensemble** (3 nodes) for cluster coordination
-- **TLS encryption** with self-signed Root CA for secure communications
-- **Prometheus + Grafana observability** with JMX Exporter, kafka_exporter, and Node Exporter
-- **Nginx reverse proxy** with HTTPS and basic auth fronting Kafka UI and Grafana
-- **Python traffic generator** producing realistic Kafka workloads with measurable consumer lag
-- **Multi-platform support** for Rocky Linux 9 and Ubuntu 22.04
-- **Comprehensive testing** using Molecule with systemd-enabled containers
-- **AI-assisted development** workflow demonstration
+## Screenshots
 
-## 📋 Architecture
+### Kafka UI — Topics Overview
 
-```mermaid
-graph TB
-    subgraph "Security"
-        CA[Root CA<br/>rootca1]
-    end
+![Kafka UI — Topics Overview](docs/images/kafka-ui-topics.png)
 
-    subgraph "ZooKeeper Ensemble"
-        ZK1[zk1<br/>:2181/:2281<br/>:7072 JMX]
-        ZK2[zk2<br/>:2181/:2281<br/>:7072 JMX]
-        ZK3[zk3<br/>:2181/:2281<br/>:7072 JMX]
-    end
+### Kafka UI — Consumer Groups
 
-    subgraph "Kafka Brokers"
-        K1[kafka1<br/>:9092/:9093<br/>:7071 JMX]
-        K2[kafka2<br/>:9092/:9093<br/>:7071 JMX]
-        K3[kafka3<br/>:9092/:9093<br/>:7071 JMX]
-    end
+![Kafka UI — Consumer Groups](docs/images/kafka-ui-consumer-groups.png)
 
-    subgraph "Observability"
-        MON[monitoring1<br/>:9090 Prometheus<br/>:3000 Grafana<br/>:9308 kafka_exporter]
-    end
+### Grafana — Kafka Broker Overview
 
-    subgraph "Access Layer"
-        NGX[nginx1<br/>:443 HTTPS<br/>/ Kafka UI<br/>/grafana/ Grafana]
-        UI[kafkaui1<br/>:8080]
-        TRF[traffic1<br/>Python producer/consumer]
-    end
+![Grafana — Kafka Broker Overview](docs/images/grafana-kafka-broker-overview.png)
 
-    CA -.->|TLS Certs| ZK1
-    CA -.->|TLS Certs| ZK2
-    CA -.->|TLS Certs| ZK3
-    CA -.->|TLS Certs| K1
-    CA -.->|TLS Certs| K2
-    CA -.->|TLS Certs| K3
-    CA -.->|TLS Certs| NGX
+### Grafana — Consumer Lag
 
-    ZK1 <-->|Quorum| ZK2
-    ZK2 <-->|Quorum| ZK3
-    ZK3 <-->|Quorum| ZK1
+![Grafana — Consumer Lag](docs/images/grafana-consumer-lag.png)
 
-    K1 & K2 & K3 -->|Coordination| ZK1
-    K1 & K2 & K3 -->|Coordination| ZK2
-    K1 & K2 & K3 -->|Coordination| ZK3
-    K1 <-->|Replication| K2
-    K2 <-->|Replication| K3
-    K3 <-->|Replication| K1
+### Grafana — ZooKeeper Overview
 
-    MON -->|Scrape :7071| K1
-    MON -->|Scrape :7071| K2
-    MON -->|Scrape :7071| K3
-    MON -->|Scrape :7072| ZK1
-    MON -->|Scrape :7072| ZK2
-    MON -->|Scrape :7072| ZK3
+![Grafana — ZooKeeper Overview](docs/images/grafana-zookeeper-overview.png)
 
-    NGX -->|Proxy| MON
-    NGX -->|Proxy| UI
-    UI -->|Admin API| K1
-    TRF -->|Produce/Consume| K1
-    TRF -->|Produce/Consume| K2
-    TRF -->|Produce/Consume| K3
+### Prometheus — All Targets UP
 
-    style CA fill:#f9f,stroke:#333,stroke-width:2px
-    style ZK1 fill:#bfb,stroke:#333,stroke-width:2px
-    style ZK2 fill:#bfb,stroke:#333,stroke-width:2px
-    style ZK3 fill:#bfb,stroke:#333,stroke-width:2px
-    style K1 fill:#fbb,stroke:#333,stroke-width:2px
-    style K2 fill:#fbb,stroke:#333,stroke-width:2px
-    style K3 fill:#fbb,stroke:#333,stroke-width:2px
-    style MON fill:#ff9,stroke:#333,stroke-width:2px
-    style NGX fill:#9cf,stroke:#333,stroke-width:2px
-    style UI fill:#bbf,stroke:#333,stroke-width:2px
-    style TRF fill:#ddd,stroke:#333,stroke-width:2px
-```
+![Prometheus — All Targets UP](docs/images/prometheus-targets.png)
 
-**Total Nodes:** 11 (1 CA + 3 ZooKeeper + 3 Kafka + 1 Monitoring + 1 Nginx + 1 Traffic Generator + 1 Kafka UI)
+### Nginx — HTTPS Reverse Proxy
 
-### Component Overview
+![Nginx — HTTPS Reverse Proxy to Kafka UI](docs/images/nginx-kafka-ui-https.png)
 
-| Node | Group | Purpose |
-|------|-------|---------|
-| `rootca1` | rootca | TLS Certificate Authority |
-| `zk1`, `zk2`, `zk3` | zookeeper | ZooKeeper ensemble + JMX Exporter (:7072) |
-| `kafka1`, `kafka2`, `kafka3` | kafka | Kafka brokers + JMX Exporter (:7071) |
-| `monitoring1` | monitoring | Prometheus (:9090) + Grafana (:3000) + kafka_exporter (:9308) |
-| `nginx1` | nginx | Nginx HTTPS reverse proxy (:443) |
-| `traffic1` | traffic | Python traffic generator |
-| `kafkaui1` | kafkaui | Kafbat Kafka UI (:8080) |
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -125,30 +56,26 @@ graph TB
 ### Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/AgentWong/kafka-ansible-collection.git
 cd kafka-ansible-collection
 
-# Install Python dependencies
 pip install -r requirements.txt
-
-# Install Ansible Galaxy dependencies
 ansible-galaxy collection install -r requirements.yml
 ```
 
 ### Running Tests
 
 ```bash
-# Run full Molecule test suite
+# Full test suite (converge + verify + destroy)
 molecule test
 
-# Run converge only (for development — preserves containers)
+# Converge only (preserves containers for development)
 molecule converge
 
 # Verify cluster health
 molecule verify
 
-# Destroy test environment
+# Tear down
 molecule destroy
 ```
 
@@ -156,27 +83,15 @@ molecule destroy
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| Prometheus | http://localhost:9090 | — |
-| Grafana (direct) | http://localhost:3000 | admin / admin |
-| Kafka UI (direct) | http://localhost:8080 | — |
 | Kafka UI (via Nginx) | https://localhost/ | admin / admin |
 | Grafana (via Nginx) | https://localhost/grafana/ | admin / admin |
+| Kafka UI (direct) | http://localhost:8080 | — |
+| Grafana (direct) | http://localhost:3000 | admin / admin |
+| Prometheus | http://localhost:9090 | — |
 
-> Nginx uses a self-signed certificate signed by the cluster Root CA. Pass `-k` or accept the warning in your browser.
+> Nginx uses a self-signed certificate signed by the cluster Root CA. Accept the browser warning or pass `-k` with curl.
 
-## 📦 Roles
-
-| Role | Description |
-|------|-------------|
-| `common` | Base system configuration, packages, users, and directories |
-| `java` | OpenJDK installation (Java 17) |
-| `rootca` | Self-signed Root CA certificate generation |
-| `zookeeper` | Apache ZooKeeper cluster deployment with TLS |
-| `kafka` | Apache Kafka broker deployment with TLS |
-| `jmx_exporter` | JMX Prometheus Java agent for Kafka and ZooKeeper metrics |
-| `nginx` | Nginx reverse proxy with TLS termination and basic auth |
-
-## 🔭 Observability Stack
+## Observability Stack
 
 ### Metrics Pipeline
 
@@ -213,110 +128,95 @@ Nginx                           nginx1:443/grafana/
 
 ### Traffic Generator
 
-The `traffic1` node runs a Python service that continuously produces and consumes messages, creating realistic Kafka load for the dashboards:
+The `traffic1` node runs a Python service that continuously produces and consumes messages, creating realistic load for the dashboards:
 
 - **Topics**: `user-events`, `order-processing`, `analytics-data`, `notifications`, `system-logs`
-- **Consumer groups**: `analytics-consumer`, `audit-consumer`, `reporting-consumer` — each with a different processing delay to create visible consumer lag
+- **Consumer groups**: `analytics-consumer` (1s delay), `audit-consumer` (8s delay), `reporting-consumer` (15s delay) — variable delays create visible consumer lag
 
-## 🔧 Configuration
+## Roles
 
-### Key Variables
+| Role | Description |
+|------|-------------|
+| `common` | Base system configuration, packages, users, and directories |
+| `java` | OpenJDK 17 installation |
+| `rootca` | Self-signed Root CA certificate generation |
+| `zookeeper` | Apache ZooKeeper cluster deployment with TLS |
+| `kafka` | Apache Kafka broker deployment with TLS |
+| `jmx_exporter` | JMX Prometheus Java agent for Kafka and ZooKeeper metrics |
+| `nginx` | Nginx reverse proxy with TLS termination and basic auth |
+
+Monitoring components (Prometheus, Grafana, Node Exporter, kafka_exporter) are deployed via Ansible Galaxy collections (`prometheus.prometheus`, `community.grafana`) and Molecule converge tasks rather than custom roles.
+
+## Configuration
+
+See [extensions/molecule/inventory/group_vars/all.yml](extensions/molecule/inventory/group_vars/all.yml) for the full variable reference. Key settings:
 
 ```yaml
-# Java
-java_version: "17"
+# Kafka
+kafka_version: "3.7.0"
+kafka_listeners: "PLAINTEXT://:9092,SSL://:9093"
+kafka_inter_broker_listener_name: "SSL"
 
 # ZooKeeper
 zookeeper_version: "3.9.3"
-zookeeper_client_port: 2181
 zookeeper_tls_enabled: true
-
-# Kafka
-kafka_version: "3.7.0"
-kafka_tls_enabled: true
-kafka_listeners: "PLAINTEXT://:9092,SSL://:9093"
 
 # JMX Exporter
 jmx_exporter_version: "1.0.1"
 jmx_exporter_kafka_port: 7071
 jmx_exporter_zookeeper_port: 7072
-kafka_jmx_exporter_enabled: true
-zookeeper_jmx_exporter_enabled: true
-
-# Grafana
-grafana_admin_password: "admin"
-
-# Nginx
-nginx_basic_auth_user: "admin"
-nginx_basic_auth_password: "admin"
 
 # Traffic generator
-traffic_bootstrap_servers: "kafka1:9092,kafka2:9092,kafka3:9092"
 traffic_produce_interval: 2   # seconds between produce batches
 traffic_consume_interval: 5   # seconds between consume polls
 ```
 
-See individual role `defaults/main.yml` files and `extensions/molecule/inventory/group_vars/all.yml` for complete variable documentation.
-
-## 📁 Repository Structure
+## Repository Structure
 
 ```
 kafka-ansible-collection/
-├── containers/               # Custom systemd-enabled Docker images
-├── docs/                     # Additional documentation
-│   └── ARCHITECTURE.md
+├── containers/                  # Systemd-enabled Docker images
+│   ├── rocky/9/Dockerfile
+│   └── ubuntu/22/Dockerfile
+├── docs/
+│   ├── ARCHITECTURE.md          # Full architecture diagram and component details
+│   ├── AI_WORKFLOW.md           # AI-assisted development methodology
+│   └── images/                  # Screenshots and workflow diagrams
 ├── extensions/molecule/
-│   ├── config.yml            # Molecule scenario config (11 containers)
+│   ├── config.yml               # Molecule scenario config (11 containers)
+│   ├── kafkaui-config.yml       # Kafka UI Spring Boot config
 │   ├── default/
-│   │   ├── converge.yml      # Main deployment playbook
-│   │   ├── converge/         # Modular task files (monitoring, grafana, traffic)
-│   │   ├── verify.yml        # Verification tests
-│   │   ├── verify/           # Modular verify task files per component
-│   │   └── files/
-│   │       ├── dashboards/   # Grafana dashboard JSON files
-│   │       └── traffic_generator.py
+│   │   ├── converge.yml         # Main deployment playbook
+│   │   ├── converge/            # Modular converge tasks (grafana, kafka-exporter, traffic)
+│   │   ├── verify.yml           # Verification tests
+│   │   └── verify/              # Modular verify tasks per component
+│   ├── files/
+│   │   ├── dashboards/          # Grafana dashboard JSON files
+│   │   └── traffic_generator.py # Python traffic generator script
 │   └── inventory/
-│       └── group_vars/all.yml
+│       └── group_vars/all.yml   # All test variables
 ├── roles/
 │   ├── common/
 │   ├── java/
-│   ├── jmx_exporter/         # JMX Prometheus Java agent
+│   ├── jmx_exporter/
 │   ├── kafka/
-│   ├── nginx/                # Reverse proxy with TLS + basic auth
+│   ├── nginx/
 │   ├── rootca/
 │   └── zookeeper/
-└── requirements.yml          # Ansible Galaxy dependencies
+├── requirements.txt             # Python dependencies
+└── requirements.yml             # Ansible Galaxy dependencies
 ```
 
-## 🧪 Testing
+## AI-Assisted Development
 
-This project uses Molecule with custom systemd-enabled Docker containers for comprehensive testing.
+This project was developed using GitHub Copilot Agent Mode with an iterative **setup → fix → test → analyze → repeat** feedback loop. Molecule provided the test harness, enabling the agent to autonomously run converge/verify cycles and fix issues without manual intervention.
 
-Tests validate:
-- Service installation and configuration
-- Cluster formation and leader election
-- TLS certificate generation and distribution
-- Inter-node communication
-- JMX Exporter metric exposure on Kafka and ZooKeeper nodes
-- Prometheus target health (all targets UP)
-- Grafana datasource and dashboard provisioning
-- Nginx reverse proxy routing and TLS
-- Traffic generator producing messages and consumer groups forming
-- End-to-end metric flow from JMX/kafka_exporter into Prometheus queries
+> See [docs/AI_WORKFLOW.md](docs/AI_WORKFLOW.md) for the full methodology breakdown with visual slides.
 
-## 📄 License
+## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0 — see the [LICENSE](LICENSE) file for details.
 
-## 👤 Author
+## Author
 
-**Herman Wong**
-
-- GitHub: [@AgentWong](https://github.com/AgentWong)
-
-## 🙏 Acknowledgments
-
-- Apache Kafka and ZooKeeper communities
-- Ansible and Molecule development teams
-- Prometheus and Grafana communities
-- GitHub Copilot for AI-assisted development
+**Herman Wong** — [@AgentWong](https://github.com/AgentWong)

@@ -46,7 +46,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "expr": "zookeeper_outstandingrequests",
-          "legendFormat": "{{ instance }}",
+          "legendFormat": "{{instance}} r{{replicaid}}",
           "refId": "A"
         }
       ]
@@ -66,7 +66,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "expr": "zookeeper_avglatency",
-          "legendFormat": "{{ instance }}",
+          "legendFormat": "{{instance}} r{{replicaid}}",
           "refId": "A"
         }
       ]
@@ -85,8 +85,8 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-          "expr": "zookeeper_numalivedonnections",
-          "legendFormat": "{{ instance }}",
+          "expr": "zookeeper_numaliveconnections",
+          "legendFormat": "{{instance}} r{{replicaid}}",
           "refId": "A"
         }
       ]
@@ -106,7 +106,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "expr": "zookeeper_znodecount",
-          "legendFormat": "{{ instance }}",
+          "legendFormat": "{{instance}} r{{replicaid}}",
           "refId": "A"
         }
       ]
@@ -126,7 +126,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "expr": "zookeeper_watchcount",
-          "legendFormat": "{{ instance }}",
+          "legendFormat": "{{instance}} r{{replicaid}}",
           "refId": "A"
         }
       ]
@@ -146,7 +146,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "expr": "zookeeper_pendingsyncs",
-          "legendFormat": "{{ instance }}",
+          "legendFormat": "{{instance}} r{{replicaid}}",
           "refId": "A"
         }
       ]
