@@ -46,6 +46,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `roles/kafka/defaults/main.yml` — Added `kafka_jmx_exporter_enabled: false` default
 - `roles/zookeeper/defaults/main.yml` — Added `zookeeper_jmx_exporter_enabled: false` default
 
+### Fixed
+
+#### ZooKeeper Dashboard Metrics (Empty Panels)
+
+- **`zookeeper_avglatency` → `zookeeper_avgrequestlatency`** — Dashboard query corrected to match the metric name actually emitted by JMX Exporter 1.0.x. The `AvgRequestLatency` attribute is captured from the `Leader`/`Follower` sub-bean by the catch-all rule, which lowercases the attribute to `avgrequestlatency`; the earlier specific rule targeting the bare replica bean never matched.
+- **`zookeeper_znodecount`, `zookeeper_watchcount`, `zookeeper_pendingsyncs`** — These attributes do not exist as JMX MBean attributes in ZooKeeper 3.8+; they are only available via the `mntr` four-letter-words command. Fixed by introducing a `mntr`-based textfile exporter (see below).
+- **ZooKeeper mntr textfile exporter** — New shell script (`roles/zookeeper/templates/zookeeper-mntr-exporter.sh.j2`) that reads `mntr` output and writes Prometheus-format metrics to `/var/lib/node_exporter/zookeeper.prom`, picked up by node_exporter's existing textfile collector. Deployed as a systemd oneshot service (`zookeeper-mntr-exporter.service`) triggered every 60 s by a systemd timer (`zookeeper-mntr-exporter.timer`). Emits: `zookeeper_mntr_znode_count`, `zookeeper_mntr_watch_count`, `zookeeper_mntr_pending_syncs`, `zookeeper_mntr_avg_latency`, `zookeeper_mntr_num_alive_connections`, `zookeeper_mntr_outstanding_requests`.
+- **ZooKeeper Overview dashboard** (`extensions/molecule/files/dashboards/zookeeper-overview.json`) — Updated panel queries: Average Latency uses `zookeeper_avgrequestlatency`; ZNode Count, Watch Count, and Pending Syncs use the new `zookeeper_mntr_*` metrics.
+- **`roles/zookeeper/defaults/main.yml`** — Added `zookeeper_mntr_exporter_enabled: false`, `zookeeper_mntr_textfile_dir`, and `zookeeper_mntr_exporter_script` defaults.
+- **`roles/zookeeper/tasks/configure.yml`** — Added tasks to deploy mntr exporter script, systemd service and timer units, and run an immediate seed scrape after ZooKeeper starts.
+- **`extensions/molecule/inventory/group_vars/all.yml`** — Added `zookeeper_mntr_exporter_enabled: true` for molecule testing.
+
 ### Security
 - TLS encryption for all Kafka and ZooKeeper communications
 - Nginx TLS termination with Root CA-signed certificate
