@@ -1,0 +1,83 @@
+# Nginx configuration — Managed by Ansible, do not edit manually
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log warn;
+pid /run/nginx.pid;
+
+include /usr/share/nginx/modules/*.conf;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log /var/log/nginx/access.log main;
+
+    sendfile            on;
+    tcp_nopush          on;
+    tcp_nodelay         on;
+    keepalive_timeout   65;
+    types_hash_max_size 4096;
+
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    # Redirect HTTP to HTTPS
+    server {
+        listen {{ nginx_http_port }};
+        server_name _;
+        return 301 https://$host$request_uri;
+    }
+
+    server {
+        listen {{ nginx_https_port }} ssl;
+        server_name {{ inventory_hostname }};
+
+        ssl_certificate     {{ nginx_ssl_cert }};
+        ssl_certificate_key {{ nginx_ssl_key }};
+        ssl_trusted_certificate {{ nginx_ssl_ca_cert }};
+
+        ssl_protocols       TLSv1.2 TLSv1.3;
+        ssl_ciphers         HIGH:!aNULL:!MD5;
+        ssl_prefer_server_ciphers on;
+        ssl_session_cache   shared:SSL:10m;
+        ssl_session_timeout 10m;
+
+        # Basic auth applied globally on this vhost
+        auth_basic           "Kafka Observability Stack";
+        auth_basic_user_file {{ nginx_htpasswd_path }};
+
+        # Grafana at /grafana/
+        # Grafana is configured with serve_from_sub_path=true and root_url=https://nginx1/grafana/
+        # proxy_pass must NOT rewrite the path — Grafana handles /grafana/ internally via serve_from_sub_path
+        location /grafana/ {
+            proxy_pass http://{{ nginx_grafana_upstream }};
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            # WebSocket support (Grafana Live)
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+        }
+
+        # Kafka UI at root — avoids sub-path asset loading issues
+        location / {
+            proxy_pass http://{{ nginx_kafkaui_upstream }}/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+        }
+    }
+}

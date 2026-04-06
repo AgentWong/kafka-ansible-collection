@@ -99,7 +99,7 @@
         mode: "0644"
 
 - name: Generate node certificates
-  hosts: zookeeper:kafka
+  hosts: zookeeper:kafka:nginx
   gather_facts: true
   tasks:
     - name: Generate node private key

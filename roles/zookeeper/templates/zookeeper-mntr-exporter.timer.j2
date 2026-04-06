@@ -1,0 +1,10 @@
+[Unit]
+Description=Run ZooKeeper mntr metrics exporter every minute
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+Unit=zookeeper-mntr-exporter.service
+
+[Install]
+WantedBy=timers.target

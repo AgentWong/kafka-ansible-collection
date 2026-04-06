@@ -57,6 +57,14 @@ zookeeper_key_password: "changeit"
 # Four Letter Words (for monitoring)
 zookeeper_4lw_commands_whitelist: "stat, ruok, conf, isro, mntr, srvr"
 
+# JMX Exporter (Prometheus metrics agent)
+zookeeper_jmx_exporter_enabled: false
+
+# mntr textfile exporter (writes ZK 4lw mntr metrics for node_exporter textfile collector)
+zookeeper_mntr_exporter_enabled: false
+zookeeper_mntr_textfile_dir: /var/lib/node_exporter
+zookeeper_mntr_exporter_script: /usr/local/bin/zookeeper-mntr-exporter.sh
+
 # Service configuration
 zookeeper_service_name: zookeeper
 zookeeper_service_state: started

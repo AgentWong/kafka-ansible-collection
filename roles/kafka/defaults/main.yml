@@ -70,3 +70,6 @@ kafka_service_enabled: true
 
 # Additional server.properties settings
 kafka_extra_properties: {}
+
+# JMX Exporter (Prometheus metrics agent)
+kafka_jmx_exporter_enabled: false

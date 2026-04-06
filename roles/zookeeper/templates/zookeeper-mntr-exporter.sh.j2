@@ -1,0 +1,55 @@
+#!/bin/bash
+# ZooKeeper mntr metrics exporter for node_exporter textfile collector
+# Scrapes the ZooKeeper 4lw 'mntr' command and writes Prometheus-format metrics
+# Managed by Ansible - do not edit manually
+
+ZOOKEEPER_HOST=localhost
+ZOOKEEPER_PORT={{ zookeeper_client_port }}
+OUTPUT_FILE={{ zookeeper_mntr_textfile_dir }}/zookeeper.prom
+TMPFILE=$(mktemp)
+
+# Read mntr output
+MNTR=$(echo mntr | nc -w 2 "${ZOOKEEPER_HOST}" "${ZOOKEEPER_PORT}" 2>/dev/null)
+if [ -z "$MNTR" ]; then
+  # ZooKeeper not responding — remove stale file if present
+  rm -f "$OUTPUT_FILE"
+  exit 0
+fi
+
+# Extract hostname for instance label
+INSTANCE={{ inventory_hostname }}
+
+{
+  echo "# HELP zookeeper_mntr_znode_count Total number of znodes in the data tree"
+  echo "# TYPE zookeeper_mntr_znode_count gauge"
+  val=$(echo "$MNTR" | awk '/^zk_znode_count/{print $2}')
+  [ -n "$val" ] && echo "zookeeper_mntr_znode_count{instance=\"${INSTANCE}\"} ${val}"
+
+  echo "# HELP zookeeper_mntr_watch_count Total number of watches registered"
+  echo "# TYPE zookeeper_mntr_watch_count gauge"
+  val=$(echo "$MNTR" | awk '/^zk_watch_count/{print $2}')
+  [ -n "$val" ] && echo "zookeeper_mntr_watch_count{instance=\"${INSTANCE}\"} ${val}"
+
+  echo "# HELP zookeeper_mntr_pending_syncs Number of pending syncs from followers to leader"
+  echo "# TYPE zookeeper_mntr_pending_syncs gauge"
+  val=$(echo "$MNTR" | awk '/^zk_pending_syncs/{print $2}')
+  [ -n "$val" ] && echo "zookeeper_mntr_pending_syncs{instance=\"${INSTANCE}\"} ${val}"
+
+  echo "# HELP zookeeper_mntr_avg_latency Average request latency in ms"
+  echo "# TYPE zookeeper_mntr_avg_latency gauge"
+  val=$(echo "$MNTR" | awk '/^zk_avg_latency/{print $2}')
+  [ -n "$val" ] && echo "zookeeper_mntr_avg_latency{instance=\"${INSTANCE}\"} ${val}"
+
+  echo "# HELP zookeeper_mntr_num_alive_connections Number of active client connections"
+  echo "# TYPE zookeeper_mntr_num_alive_connections gauge"
+  val=$(echo "$MNTR" | awk '/^zk_num_alive_connections/{print $2}')
+  [ -n "$val" ] && echo "zookeeper_mntr_num_alive_connections{instance=\"${INSTANCE}\"} ${val}"
+
+  echo "# HELP zookeeper_mntr_outstanding_requests Number of requests queued"
+  echo "# TYPE zookeeper_mntr_outstanding_requests gauge"
+  val=$(echo "$MNTR" | awk '/^zk_outstanding_requests/{print $2}')
+  [ -n "$val" ] && echo "zookeeper_mntr_outstanding_requests{instance=\"${INSTANCE}\"} ${val}"
+} > "$TMPFILE"
+
+mv "$TMPFILE" "$OUTPUT_FILE"
+chmod 644 "$OUTPUT_FILE"

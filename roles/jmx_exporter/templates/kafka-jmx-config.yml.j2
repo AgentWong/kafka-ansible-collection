@@ -1,0 +1,81 @@
+---
+# JMX Exporter configuration for Kafka broker
+# Based on confluentinc/jmx-monitoring-stacks kafka_broker.yml
+# Managed by Ansible - do not edit manually
+
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+
+rules:
+  # Kafka broker topic metrics — messages/bytes in/out per second
+  - pattern: kafka.server<type=BrokerTopicMetrics, name=(BytesInPerSec|BytesOutPerSec|MessagesInPerSec|BytesRejectedPerSec|FailedProduceRequestsPerSec|FailedFetchRequestsPerSec), topic=(.+)><>(Count|OneMinuteRate|FiveMinuteRate|FifteenMinuteRate|MeanRate)
+    name: kafka_server_brokertopicmetrics_$1_$3
+    labels:
+      topic: "$2"
+
+  - pattern: kafka.server<type=BrokerTopicMetrics, name=(BytesInPerSec|BytesOutPerSec|MessagesInPerSec|BytesRejectedPerSec|FailedProduceRequestsPerSec|FailedFetchRequestsPerSec)><>(Count|OneMinuteRate|FiveMinuteRate|FifteenMinuteRate|MeanRate)
+    name: kafka_server_brokertopicmetrics_$1_$2
+
+  # Replica manager — under-replicated partitions, partition count
+  - pattern: kafka.server<type=ReplicaManager, name=(.+)><>(Value|Count|OneMinuteRate|FiveMinuteRate|FifteenMinuteRate|MeanRate)
+    name: kafka_server_replicamanager_$1_$2
+
+  # Controller metrics — active controller count
+  - pattern: kafka.controller<type=KafkaController, name=(.+)><>(Value)
+    name: kafka_controller_kafkacontroller_$1
+
+  - pattern: kafka.controller<type=ControllerStats, name=(.+)><>(Count|OneMinuteRate|FiveMinuteRate|FifteenMinuteRate|MeanRate)
+    name: kafka_controller_controllerstats_$1_$2
+
+  # Network request metrics
+  - pattern: kafka.network<type=RequestMetrics, name=(.+), request=(.+), stage=(.+)><>(Value|Count|OneMinuteRate|FiveMinuteRate|FifteenMinuteRate|MeanRate|50thPercentile|75thPercentile|95thPercentile|98thPercentile|99thPercentile|999thPercentile)
+    name: kafka_network_requestmetrics_$1_$4
+    labels:
+      request: "$2"
+      stage: "$3"
+
+  - pattern: kafka.network<type=RequestMetrics, name=(.+), request=(.+)><>(Value|Count|OneMinuteRate|FiveMinuteRate|FifteenMinuteRate|MeanRate|50thPercentile|75thPercentile|95thPercentile|98thPercentile|99thPercentile|999thPercentile)
+    name: kafka_network_requestmetrics_$1_$3
+    labels:
+      request: "$2"
+
+  # Request handler pool — idle ratio
+  - pattern: kafka.server<type=KafkaRequestHandlerPool, name=RequestHandlerAvgIdlePercent><>(OneMinuteRate|FiveMinuteRate|FifteenMinuteRate|MeanRate)
+    name: kafka_server_kafkarequesthandlerpool_requesthandleravgidlepercent_$1
+
+  # Log flush stats
+  - pattern: kafka.log<type=LogFlushStats, name=(.+)><>(Count|OneMinuteRate|FiveMinuteRate|FifteenMinuteRate|MeanRate|50thPercentile|75thPercentile|95thPercentile|98thPercentile|99thPercentile|999thPercentile)
+    name: kafka_log_logflushstats_$1_$2
+
+  # Coordinator metrics
+  - pattern: kafka.coordinator.(group|transaction)<type=(.+), name=(.+)><>(Value|Count|OneMinuteRate|FiveMinuteRate|FifteenMinuteRate|MeanRate)
+    name: kafka_coordinator_$1_$2_$3_$4
+
+  # Partition metrics
+  - pattern: kafka.cluster<type=Partition, name=(.+), topic=(.+), partition=(.+)><>(Value)
+    name: kafka_cluster_partition_$1
+    labels:
+      topic: "$2"
+      partition: "$3"
+
+  # Log size per topic/partition
+  - pattern: kafka.log<type=Log, name=(.+), topic=(.+), partition=(.+)><>(Value)
+    name: kafka_log_log_$1
+    labels:
+      topic: "$2"
+      partition: "$3"
+
+  # JVM memory and GC (standard)
+  - pattern: java.lang<type=GarbageCollector, name=(.+)><>(CollectionCount|CollectionTime)
+    name: jvm_gc_$2_total
+    labels:
+      gc: "$1"
+
+  - pattern: java.lang<type=Memory><HeapMemoryUsage>(used|committed|max)
+    name: jvm_memory_heap_$1_bytes
+
+  - pattern: java.lang<type=Memory><NonHeapMemoryUsage>(used|committed|max)
+    name: jvm_memory_nonheap_$1_bytes
+
+  - pattern: java.lang<type=Threading><>(ThreadCount|DaemonThreadCount|PeakThreadCount)
+    name: jvm_threads_$1

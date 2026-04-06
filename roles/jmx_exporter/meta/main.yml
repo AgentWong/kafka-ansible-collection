@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  author: hermanwong
+  description: Installs and configures JMX Exporter Java agent for Prometheus metrics
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+
+dependencies: []

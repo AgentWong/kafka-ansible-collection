@@ -82,35 +82,68 @@ When ANY phase fails:
 ### Diagnostic Commands (use as needed)
 
 ```bash
-# Check service status
+# --- Core cluster ---
 docker exec -it zk1 systemctl status zookeeper
 docker exec -it kafka1 systemctl status kafka
-
-# View service logs
 docker exec -it zk1 journalctl -u zookeeper -n 100 --no-pager
 docker exec -it kafka1 journalctl -u kafka -n 100 --no-pager
-
-# Check ZooKeeper
 docker exec -it zk1 /opt/zookeeper/bin/zkServer.sh status
-
-# Check Kafka
 docker exec -it kafka1 /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092
-
-# View config files
 docker exec -it kafka1 cat /opt/kafka/config/server.properties
-docker exec -it zk1 cat /opt/zookeeper/conf/zoo.cfg
+
+# --- JMX Exporter ---
+# Verify JMX agent loaded (look for "jmx_prometheus_javaagent" in process args)
+docker exec -it kafka1 jps -v | grep jmx
+docker exec -it kafka1 curl -s http://localhost:7071/metrics | head -20
+docker exec -it zk1 curl -s http://localhost:7072/metrics | head -20
+
+# --- Prometheus ---
+docker exec -it monitoring1 systemctl status prometheus
+docker exec -it monitoring1 journalctl -u prometheus -n 50 --no-pager
+docker exec -it monitoring1 curl -s http://localhost:9090/-/healthy
+# Check all targets UP
+docker exec -it monitoring1 curl -s 'http://localhost:9090/api/v1/targets' | python3 -m json.tool | grep -E '"health"|"job"|"scrapeUrl"'
+
+# --- Grafana ---
+docker exec -it monitoring1 systemctl status grafana-server
+docker exec -it monitoring1 journalctl -u grafana-server -n 50 --no-pager
+docker exec -it monitoring1 curl -s http://localhost:3000/api/health
+
+# --- kafka_exporter ---
+docker exec -it monitoring1 systemctl status kafka_exporter
+docker exec -it monitoring1 journalctl -u kafka_exporter -n 50 --no-pager
+docker exec -it monitoring1 curl -s http://localhost:9308/metrics | grep kafka_brokers
+
+# --- Nginx ---
+docker exec -it nginx1 systemctl status nginx
+docker exec -it nginx1 journalctl -u nginx -n 50 --no-pager
+docker exec -it nginx1 nginx -t
+curl -k -u admin:admin https://localhost/grafana/api/health
+curl -k -u admin:admin https://localhost/ -o /dev/null -w "%{http_code}"
+
+# --- Traffic Generator ---
+docker exec -it traffic1 systemctl status traffic-generator
+docker exec -it traffic1 journalctl -u traffic-generator -n 50 --no-pager
+docker exec -it kafka1 /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+docker exec -it kafka1 /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list
 ```
 
 ### Common Fixes
 
 | Error Pattern | Likely Fix |
 |---------------|------------|
-| `'variable' is undefined` | Add to `roles/<role>/defaults/main.yml` or `vars/*.yml` |
+| `'variable' is undefined` | Add to `roles/<role>/defaults/main.yml` or `group_vars/all.yml` |
 | `No file was found` | Create missing template in `roles/<role>/templates/` |
 | `handler not found` | Match `notify:` name with handler `name:` in `handlers/main.yml` |
 | `conditional check failed` | Ensure variable is defined before the `when:` clause |
 | Service won't start | Check logs with `journalctl`, fix config templates |
 | `changed != 0` in idempotence | Make task conditional or use `creates:`/`removes:` |
+| JMX metrics missing in Prometheus | Verify `kafka_jmx_exporter_enabled: true` in `group_vars/all.yml`; check JMX agent in `jps -v` output |
+| Prometheus target not UP | Check firewall/container network; verify port is bound with `ss -tlnp` |
+| Grafana blank dashboards | Wrong job name in query; check Prometheus job names match dashboard `job=` label filters |
+| Nginx 502 on `/grafana/` | Grafana not yet started; check `grafana-server` service status on monitoring1 |
+| kafka_exporter exits immediately | Kafka brokers not yet ready; kafka_exporter needs brokers reachable at startup |
+| Traffic generator fails to start | kafka-python not installed (`pip3 install kafka-python`); check bootstrap servers reachable |
 
 ## Context Management
 
@@ -147,6 +180,15 @@ The workflow is complete when:
 - `molecule verify -s demo` passes all assertions
 - Infrastructure remains running for manual verification
 - Kafka UI at `http://localhost:8080/ui/clusters/kafka-cluster` shows demo topics and consumer groups
+
+### Observability Stack Verification Checklist
+- `http://localhost:9090` — Prometheus UI accessible, all targets show `UP`
+  - Targets: `kafka-jmx` (3), `zookeeper-jmx` (3), `kafka-exporter` (1), `node` (9), `prometheus` (1)
+- `http://localhost:3000` — Grafana accessible (admin/admin), Prometheus datasource connected
+  - Dashboards loaded: Kafka Broker Overview, Consumer Lag, ZooKeeper Overview, Node Exporter Full, Kafka Exporter Overview
+- `https://localhost/` — Nginx proxying Kafka UI (basic auth: admin/admin, accept self-signed cert)
+- `https://localhost/grafana/api/health` — Grafana accessible via Nginx sub-path
+- `traffic-generator` service running on `traffic1` — topics visible in Kafka UI
 
 ## Final Report
 

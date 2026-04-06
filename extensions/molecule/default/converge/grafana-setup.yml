@@ -1,0 +1,117 @@
+---
+# Install and configure Grafana on the monitoring node
+
+- name: Add Grafana YUM repository
+  ansible.builtin.copy:
+    content: |
+      [grafana]
+      name=grafana
+      baseurl=https://rpm.grafana.com
+      repo_gpgcheck=1
+      enabled=1
+      gpgcheck=1
+      gpgkey=https://rpm.grafana.com/gpg.key
+      sslverify=1
+      sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+    dest: /etc/yum.repos.d/grafana.repo
+    mode: "0644"
+
+- name: Install Grafana
+  ansible.builtin.dnf:
+    name: grafana
+    state: present
+
+- name: Create Grafana directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: grafana
+    group: grafana
+    mode: "0755"
+  loop:
+    - /var/lib/grafana/dashboards
+    - /etc/grafana/provisioning/dashboards
+    - /etc/grafana/provisioning/datasources
+
+- name: Configure grafana.ini
+  community.general.ini_file:
+    path: /etc/grafana/grafana.ini
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0640"
+    owner: root
+    group: grafana
+  loop:
+    - { section: server, option: root_url, value: "https://nginx1/grafana/" }
+    - { section: server, option: serve_from_sub_path, value: "true" }
+    - { section: security, option: admin_user, value: "admin" }
+    - { section: security, option: admin_password, value: "{{ grafana_admin_password | default('admin') }}" }
+    - { section: "auth.anonymous", option: enabled, value: "false" }
+
+- name: Deploy Prometheus datasource provisioning
+  ansible.builtin.copy:
+    content: |
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          uid: prometheus
+          type: prometheus
+          access: proxy
+          url: http://localhost:9090
+          isDefault: true
+          editable: false
+    dest: /etc/grafana/provisioning/datasources/prometheus.yml
+    owner: grafana
+    group: grafana
+    mode: "0640"
+
+- name: Deploy dashboard provider config
+  ansible.builtin.copy:
+    content: |
+      apiVersion: 1
+      providers:
+        - name: kafka
+          orgId: 1
+          type: file
+          disableDeletion: false
+          updateIntervalSeconds: 30
+          allowUiUpdates: false
+          options:
+            path: /var/lib/grafana/dashboards
+    dest: /etc/grafana/provisioning/dashboards/kafka-dashboards.yml
+    owner: grafana
+    group: grafana
+    mode: "0640"
+
+- name: Copy custom dashboard JSON files
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/var/lib/grafana/dashboards/{{ item | basename }}"
+    owner: grafana
+    group: grafana
+    mode: "0640"
+  with_fileglob:
+    - "{{ playbook_dir }}/../files/dashboards/*.json"
+
+- name: Resolve datasource template variable in provisioned dashboards
+  ansible.builtin.replace:
+    path: "/var/lib/grafana/dashboards/{{ item | basename }}"
+    regexp: '\$\{DS_PROMETHEUS\}'
+    replace: 'prometheus'
+  with_fileglob:
+    - "{{ playbook_dir }}/../files/dashboards/*.json"
+
+- name: Enable and start Grafana
+  ansible.builtin.systemd:
+    name: grafana-server
+    state: restarted
+    enabled: true
+    daemon_reload: true
+
+- name: Wait for Grafana to be ready
+  ansible.builtin.wait_for:
+    port: 3000
+    host: localhost
+    timeout: 60
+    delay: 5

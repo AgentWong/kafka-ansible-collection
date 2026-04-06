@@ -1,0 +1,62 @@
+---
+# Deploy Python traffic generator on the traffic node
+
+- name: Install Python pip and dependencies
+  ansible.builtin.dnf:
+    name:
+      - python3-pip
+      - python3
+    state: present
+
+- name: Install kafka-python library
+  ansible.builtin.pip:
+    name: kafka-python
+    state: present
+    executable: pip3
+
+- name: Create traffic generator directory
+  ansible.builtin.file:
+    path: /opt/traffic-generator
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy traffic generator script
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../files/traffic_generator.py"
+    dest: /opt/traffic-generator/traffic_generator.py
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy traffic generator systemd service
+  ansible.builtin.copy:
+    content: |
+      [Unit]
+      Description=Kafka Traffic Generator
+      After=network.target
+      StartLimitIntervalSec=60
+      StartLimitBurst=5
+
+      [Service]
+      Type=simple
+      User=root
+      Environment=KAFKA_BOOTSTRAP_SERVERS={{ traffic_bootstrap_servers | default('kafka1:9092,kafka2:9092,kafka3:9092') }}
+      Environment=PRODUCE_INTERVAL={{ traffic_produce_interval | default(2) }}
+      Environment=CONSUME_INTERVAL={{ traffic_consume_interval | default(5) }}
+      ExecStart=/usr/bin/python3 /opt/traffic-generator/traffic_generator.py
+      Restart=on-failure
+      RestartSec=10
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/traffic-generator.service
+    mode: "0644"
+
+- name: Reload systemd and start traffic generator
+  ansible.builtin.systemd:
+    name: traffic-generator
+    state: started
+    enabled: true
+    daemon_reload: true

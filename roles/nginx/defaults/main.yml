@@ -1,0 +1,20 @@
+---
+# Default variables for the nginx role
+
+nginx_http_port: 80
+nginx_https_port: 443
+
+# TLS certificate paths (from rootca role)
+nginx_cert_path: "{{ rootca_cert_path | default('/opt/kafka-ca') }}"
+nginx_ssl_cert: "{{ nginx_cert_path }}/{{ inventory_hostname }}.crt"
+nginx_ssl_key: "{{ nginx_cert_path }}/{{ inventory_hostname }}.key"
+nginx_ssl_ca_cert: "{{ nginx_cert_path }}/ca.crt"
+
+# Basic auth credentials
+nginx_basic_auth_user: "admin"
+nginx_basic_auth_password: "admin"
+nginx_htpasswd_path: "/etc/nginx/.htpasswd"
+
+# Upstream services
+nginx_grafana_upstream: "monitoring1:3000"
+nginx_kafkaui_upstream: "kafkaui1:8080"

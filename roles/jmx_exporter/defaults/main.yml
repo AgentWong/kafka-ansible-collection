@@ -1,0 +1,15 @@
+---
+# Default variables for the jmx_exporter role
+
+jmx_exporter_version: "1.0.1"
+jmx_exporter_install_dir: "/opt/jmx-exporter"
+jmx_exporter_jar_name: "jmx_prometheus_javaagent-{{ jmx_exporter_version }}.jar"
+jmx_exporter_download_url: "https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/{{ jmx_exporter_version }}/{{ jmx_exporter_jar_name }}"
+
+# Port configuration
+jmx_exporter_kafka_port: 7071
+jmx_exporter_zookeeper_port: 7072
+
+# Feature flags (overridden in group_vars)
+kafka_jmx_exporter_enabled: false
+zookeeper_jmx_exporter_enabled: false

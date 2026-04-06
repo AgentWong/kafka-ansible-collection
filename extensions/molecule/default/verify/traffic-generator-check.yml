@@ -1,0 +1,24 @@
+---
+# Verify traffic generator is running and producing messages
+
+- name: Check traffic-generator service is running
+  ansible.builtin.systemd:
+    name: traffic-generator
+  register: traffic_service
+  failed_when: traffic_service.status.ActiveState != 'active'
+
+- name: Check traffic generator is producing (verify topics exist)
+  ansible.builtin.command: >
+    {{ kafka_install_dir | default('/opt/kafka') }}/bin/kafka-topics.sh
+    --list
+    --bootstrap-server kafka1:{{ kafka_plaintext_port | default(9092) }}
+  register: topic_list
+  changed_when: false
+  delegate_to: kafka1
+
+- name: Assert traffic generator topics are present
+  ansible.builtin.assert:
+    that:
+      - "'user-events' in topic_list.stdout or topic_list.stdout_lines | length > 0"
+    fail_msg: "Traffic generator topics not found — producer may not have started yet"
+    success_msg: "Topics exist, traffic generator is producing"

@@ -1,0 +1,84 @@
+---
+# Deploy kafka_exporter (danielqsj) on the monitoring node
+# Exposes Kafka consumer group lag and broker metrics on port 9308
+
+- name: Create kafka_exporter user
+  ansible.builtin.user:
+    name: kafka_exporter
+    system: true
+    shell: /sbin/nologin
+    home: /var/lib/kafka_exporter
+    create_home: false
+
+- name: Create kafka_exporter directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: kafka_exporter
+    group: kafka_exporter
+    mode: "0755"
+  loop:
+    - /opt/kafka_exporter
+    - /var/lib/kafka_exporter
+
+- name: Download kafka_exporter binary
+  ansible.builtin.get_url:
+    url: "https://github.com/danielqsj/kafka_exporter/releases/download/v{{ kafka_exporter_version | default('1.9.0') }}/kafka_exporter-{{ kafka_exporter_version | default('1.9.0') }}.linux-amd64.tar.gz"
+    dest: "/tmp/kafka_exporter-{{ kafka_exporter_version | default('1.9.0') }}.linux-amd64.tar.gz"
+    mode: "0644"
+  register: kafka_exporter_download
+  retries: 3
+  delay: 5
+  until: kafka_exporter_download is succeeded
+
+- name: Extract kafka_exporter binary
+  ansible.builtin.unarchive:
+    src: "/tmp/kafka_exporter-{{ kafka_exporter_version | default('1.9.0') }}.linux-amd64.tar.gz"
+    dest: /opt/kafka_exporter
+    remote_src: true
+    extra_opts:
+      - --strip-components=1
+    creates: /opt/kafka_exporter/kafka_exporter
+
+- name: Set kafka_exporter binary permissions
+  ansible.builtin.file:
+    path: /opt/kafka_exporter/kafka_exporter
+    owner: kafka_exporter
+    group: kafka_exporter
+    mode: "0755"
+
+- name: Deploy kafka_exporter systemd service
+  ansible.builtin.copy:
+    content: |
+      [Unit]
+      Description=Kafka Exporter for Prometheus
+      After=network.target
+
+      [Service]
+      User=kafka_exporter
+      Group=kafka_exporter
+      Type=simple
+      ExecStart=/opt/kafka_exporter/kafka_exporter \
+        --kafka.server=kafka1:9092 \
+        --kafka.server=kafka2:9092 \
+        --kafka.server=kafka3:9092 \
+        --web.listen-address=:9308 \
+        --web.telemetry-path=/metrics
+      Restart=on-failure
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/kafka_exporter.service
+    mode: "0644"
+  register: kafka_exporter_service_file
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable and start kafka_exporter
+  ansible.builtin.systemd:
+    name: kafka_exporter
+    state: "{{ 'restarted' if kafka_exporter_service_file.changed else 'started' }}"
+    enabled: true

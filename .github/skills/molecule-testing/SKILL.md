@@ -19,10 +19,14 @@ This skill helps run and troubleshoot Ansible Molecule tests for deploying Kafka
 | Container | Group | Purpose |
 |-----------|-------|---------|
 | `rootca1` | rootca | TLS Certificate Authority |
-| `zk1`, `zk2`, `zk3` | zookeeper | ZooKeeper ensemble |
-| `kafka1`, `kafka2`, `kafka3` | kafka | Kafka broker cluster |
+| `zk1`, `zk2`, `zk3` | zookeeper | ZooKeeper ensemble + JMX Exporter (:7072) |
+| `kafka1`, `kafka2`, `kafka3` | kafka | Kafka brokers + JMX Exporter (:7071) |
+| `monitoring1` | monitoring | Prometheus (:9090) + Grafana (:3000) + kafka_exporter (:9308) + Node Exporter |
+| `nginx1` | nginx | Nginx reverse proxy HTTPS (:443) |
+| `traffic1` | traffic | Python traffic generator (producer + 3 consumers) |
+| `kafkaui1` | kafkaui | Kafbat Kafka UI (:8080) |
 
-**Platform**: Rocky Linux 9 with systemd (Docker)
+**Platform**: Rocky Linux 9 with systemd (Docker), except `kafkaui1` (Kafbat image)
 
 ## Preferred Workflow
 
@@ -134,16 +138,47 @@ molecule converge  # May fail or use wrong paths
 Use `docker exec` for non-interactive commands:
 
 ```bash
-# Check service status
+# --- Core cluster ---
 docker exec -it kafka1 systemctl status kafka
 docker exec -it zk1 systemctl status zookeeper
-
-# View logs
 docker exec -it kafka1 journalctl -u kafka -n 50 --no-pager
-
-# Check configuration
 docker exec -it kafka1 cat /opt/kafka/config/server.properties
+
+# --- JMX Exporter ---
+docker exec -it kafka1 curl -s http://localhost:7071/metrics | head -20
+docker exec -it zk1 curl -s http://localhost:7072/metrics | head -20
+
+# --- Monitoring stack ---
+docker exec -it monitoring1 systemctl status prometheus grafana-server kafka_exporter
+docker exec -it monitoring1 curl -s http://localhost:9090/-/healthy
+docker exec -it monitoring1 curl -s 'http://localhost:9090/api/v1/targets' | python3 -m json.tool | grep '"health"'
+docker exec -it monitoring1 curl -s http://localhost:3000/api/health
+docker exec -it monitoring1 curl -s http://localhost:9308/metrics | grep kafka_brokers
+
+# --- Nginx ---
+docker exec -it nginx1 systemctl status nginx
+docker exec -it nginx1 nginx -t
+curl -k -u admin:admin https://localhost/grafana/api/health
+
+# --- Traffic generator ---
+docker exec -it traffic1 systemctl status traffic-generator
+docker exec -it traffic1 journalctl -u traffic-generator -n 30 --no-pager
 ```
+
+## Verify Task Files
+
+Each component has its own verify task file under `extensions/molecule/default/verify/`:
+
+| File | What it checks |
+|------|----------------|
+| `jmx-exporter-check.yml` | Ports 7071/7072 responding, metrics present |
+| `prometheus-check.yml` | Service active, all targets UP via API |
+| `grafana-check.yml` | Service active, Prometheus datasource configured |
+| `kafka-exporter-check.yml` | Service active, `kafka_brokers` metric present |
+| `nginx-check.yml` | Service active, Kafka UI and Grafana accessible via HTTPS |
+| `traffic-generator-check.yml` | Service active, topics exist |
+| `monitoring-integration.yml` | Prometheus can query JMX, kafka_exporter, node_exporter metrics |
+| `summary-display.yml` | Prints all endpoints and credentials |
 
 ## Iterative Testing
 

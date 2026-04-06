@@ -63,6 +63,28 @@ common_packages:
   - net-tools
   - procps
 
+# JMX Exporter
+jmx_exporter_version: "1.0.1"
+jmx_exporter_install_dir: "/opt/jmx-exporter"
+jmx_exporter_kafka_port: 7071
+jmx_exporter_zookeeper_port: 7072
+kafka_jmx_exporter_enabled: true
+zookeeper_jmx_exporter_enabled: true
+zookeeper_mntr_exporter_enabled: true
+
+# Monitoring
+grafana_admin_password: "admin"
+kafka_exporter_version: "1.9.0"
+
+# Nginx
+nginx_basic_auth_user: "admin"
+nginx_basic_auth_password: "admin"
+
+# Traffic generator
+traffic_bootstrap_servers: "kafka1:9092,kafka2:9092,kafka3:9092"
+traffic_produce_interval: 2
+traffic_consume_interval: 5
+
 # System limits
 common_ulimits:
   - domain: "{{ kafka_user | default('kafka') }}"

@@ -1,0 +1,23 @@
+---
+# Verify kafka_exporter is running and exposing consumer group metrics
+
+- name: Check kafka_exporter service is running
+  ansible.builtin.systemd:
+    name: kafka_exporter
+  register: kafka_exporter_service
+  failed_when: kafka_exporter_service.status.ActiveState != 'active'
+
+- name: Check kafka_exporter metrics endpoint
+  ansible.builtin.uri:
+    url: "http://localhost:9308/metrics"
+    method: GET
+    status_code: 200
+    return_content: true
+  register: kafka_exporter_metrics
+
+- name: Assert kafka_exporter exposes consumer group lag metric
+  ansible.builtin.assert:
+    that:
+      - "'kafka_consumergroup_lag' in kafka_exporter_metrics.content or 'kafka_brokers' in kafka_exporter_metrics.content"
+    fail_msg: "kafka_exporter metrics missing expected consumer group or broker metrics"
+    success_msg: "kafka_exporter is exposing Kafka metrics on port 9308"

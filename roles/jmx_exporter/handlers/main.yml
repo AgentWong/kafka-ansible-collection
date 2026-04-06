@@ -1,0 +1,2 @@
+---
+# No service handlers needed — JMX Exporter is a Java agent loaded at JVM startup
